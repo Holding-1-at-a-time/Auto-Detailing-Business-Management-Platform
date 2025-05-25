@@ -1,4 +1,17 @@
+/**
+    * @description      : 
+    * @author           : rrome
+    * @group            : 
+    * @created          : 25/05/2025 - 18:19:06
+    * 
+    * MODIFICATION LOG
+    * - Version         : 1.0.0
+    * - Date            : 25/05/2025
+    * - Author          : rrome
+    * - Modification    : 
+**/
 import type { Config } from "tailwindcss"
+import tailwindcssAnimate from "tailwindcss-animate"
 
 const config: Config = {
   content: ["./app/**/*.{js,ts,jsx,tsx}", "./components/**/*.{js,ts,jsx,tsx}", "*.{js,ts,jsx,tsx,mdx}"],
@@ -56,7 +69,7 @@ const config: Config = {
       },
     },
   },
-  plugins: [],
+  plugins: [tailwindcssAnimate],
 }
 
 export default config

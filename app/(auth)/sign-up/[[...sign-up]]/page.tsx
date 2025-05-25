@@ -2,7 +2,7 @@
     * @description      : 
     * @author           : rrome
     * @group            : 
-    * @created          : 25/05/2025 - 18:21:42
+    * @created          : 25/05/2025 - 18:35:40
     * 
     * MODIFICATION LOG
     * - Version         : 1.0.0
@@ -10,11 +10,8 @@
     * - Author          : rrome
     * - Modification    : 
 **/
-/** @type {import('postcss-load-config').Config} */
-const config = {
-  plugins: {
-    '@tailwindcss/postcss': {},
-  },
-};
+import { SignUp } from '@clerk/nextjs'
 
-export default config;
+export default function Page() {
+  return <SignUp />
+}

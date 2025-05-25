@@ -1,3 +1,15 @@
+/**
+    * @description      : 
+    * @author           : rrome
+    * @group            : 
+    * @created          : 25/05/2025 - 18:05:23
+    * 
+    * MODIFICATION LOG
+    * - Version         : 1.0.0
+    * - Date            : 25/05/2025
+    * - Author          : rrome
+    * - Modification    : 
+**/
 import { defineSchema, defineTable } from "convex/server"
 import { v } from "convex/values"
 
@@ -5,6 +17,7 @@ export default defineSchema({
   tenants: defineTable({
     name: v.string(),
     timezone: v.string(),
+    orgId: v.id("organizations"),
     stripeCustomerId: v.optional(v.string()),
     logoUrl: v.optional(v.string()),
     createdAt: v.number(),

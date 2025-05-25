@@ -1,3 +1,15 @@
+/**
+    * @description      : 
+    * @author           : rrome
+    * @group            : 
+    * @created          : 25/05/2025 - 17:08:39
+    * 
+    * MODIFICATION LOG
+    * - Version         : 1.0.0
+    * - Date            : 25/05/2025
+    * - Author          : rrome
+    * - Modification    : 
+**/
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -11,25 +23,5 @@ const nextConfig = {
     domains: ['placeholder.com'],
     unoptimized: true,
   },
-  async redirects() {
-    return [
-      {
-        source: '/:tenant/dashboard',
-        destination: '/app/(tenant)/dashboard',
-        permanent: true,
-      },
-      {
-        source: '/:tenant/bookings',
-        destination: '/app/(tenant)/bookings',
-        permanent: true,
-      },
-      {
-        source: '/:tenant/clients',
-        destination: '/app/(tenant)/clients',
-        permanent: true,
-      },
-    ];
-  },
 };
-
 export default nextConfig;

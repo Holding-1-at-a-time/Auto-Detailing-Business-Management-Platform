@@ -1,11 +1,23 @@
+/**
+    * @description      : 
+    * @author           : rrome
+    * @group            : 
+    * @created          : 25/05/2025 - 18:28:55
+    * 
+    * MODIFICATION LOG
+    * - Version         : 1.0.0
+    * - Date            : 25/05/2025
+    * - Author          : rrome
+    * - Modification    : 
+**/
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { auth } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
 
 export default async function LandingPage() {
-  const { userId } = auth()
-
+const authResult = await auth();
+const { userId } = authResult;
   // If user is signed in, redirect to their first tenant or tenant selection
   if (userId) {
     // In a real app, we would fetch the user's tenants and redirect to the first one
