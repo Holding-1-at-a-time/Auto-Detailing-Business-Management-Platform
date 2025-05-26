@@ -25,7 +25,9 @@ export default clerkMiddleware(async (auth, req) => {
 // Tenant extraction function
 function getTenantFromHost(req: NextRequest): string | null {
   const host = req.headers.get("host")
-  if (!host) return null
+  if (!host) {
+    return null
+  }
 
   // Extract subdomain (e.g., acme.autodetailer.app -> acme)
   const hostParts = host.split(".")
@@ -70,8 +72,11 @@ export async function middleware(req: NextRequest) {
   return NextResponse.next()
 }
 
-// Use Clerk's auth middleware after our tenant middleware
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    // Skip Next.js internals and all static files, unless found in search params
+    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
+    // Always run for API routes
+    '/(api|trpc)(.*)',
+  ],
 }
-
