@@ -147,6 +147,135 @@ export const findClientBySearch = query({
   },
 })
 
+// Get booking by ID
+export const getBookingById = query({
+  args: {
+    tenantId: v.id("tenants"),
+    bookingId: v.id("bookings"),
+  },
+  handler: async (ctx, args) => {
+    const booking = await ctx.db.get(args.bookingId)
+
+    if (!booking || booking.tenantId !== args.tenantId) {
+      return null
+    }
+
+    // Get client information
+    const client = await ctx.db.get(booking.clientId)
+
+    return {
+      ...booking,
+      clientName: client?.name || "Unknown Client",
+    }
+  },
+})
+
+// Get past bookings
+export const getPastBookings = query({
+  args: {
+    tenantId: v.id("tenants"),
+    clientId: v.optional(v.id("clients")),
+    service: v.optional(v.string()),
+    limit: v.number(),
+  },
+  handler: async (ctx, args) => {
+    let query = ctx.db.query("bookings").withIndex("by_tenant", (q) => q.eq("tenantId", args.tenantId))
+
+    // Apply filters
+    if (args.clientId) {
+      query = query.filter((q) => q.eq(q.field("clientId"), args.clientId))
+    }
+
+    if (args.service) {
+      query = query.filter((q) => q.eq(q.field("service"), args.service))
+    }
+
+    // Get bookings
+    const bookings = await query.order("desc").take(args.limit).collect()
+
+    // Get client information for each booking
+    const clientIds = [...new Set(bookings.map((booking) => booking.clientId))]
+    const clients = await Promise.all(clientIds.map((clientId) => ctx.db.get(clientId)))
+
+    // Create a map of client IDs to names
+    const clientMap = new Map()
+    clients.forEach((client) => {
+      if (client) {
+        clientMap.set(client._id, client.name)
+      }
+    })
+
+    // Format bookings with client names
+    return bookings.map((booking) => ({
+      id: booking._id,
+      clientName: clientMap.get(booking.clientId) || "Unknown Client",
+      service: booking.service,
+      dateTime: booking.dateTime.toString(),
+      status: booking.status,
+      notes: booking.notes,
+    }))
+  },
+})
+
+// Get service details
+export const getServiceDetails = query({
+  args: {
+    tenantId: v.id("tenants"),
+    service: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // This would typically come from a services table
+    // For now, we'll use a static mapping
+    const serviceMap = {
+      "Basic Wash": {
+        name: "Basic Wash",
+        description: "Exterior wash, tire cleaning, and basic interior vacuum.",
+        duration: 30, // minutes
+        price: 29.99,
+      },
+      "Interior Detailing": {
+        name: "Interior Detailing",
+        description: "Deep cleaning of all interior surfaces, carpet shampooing, and leather conditioning.",
+        duration: 60,
+        price: 89.99,
+      },
+      "Exterior Detailing": {
+        name: "Exterior Detailing",
+        description: "Thorough exterior cleaning, clay bar treatment, and wax application.",
+        duration: 60,
+        price: 99.99,
+      },
+      "Full Detailing": {
+        name: "Full Detailing",
+        description: "Complete interior and exterior detailing package.",
+        duration: 120,
+        price: 179.99,
+      },
+      "Ceramic Coating": {
+        name: "Ceramic Coating",
+        description: "Professional ceramic coating application for long-lasting protection.",
+        duration: 120,
+        price: 299.99,
+      },
+      "Paint Correction": {
+        name: "Paint Correction",
+        description: "Professional paint correction to remove scratches, swirls, and imperfections.",
+        duration: 180,
+        price: 349.99,
+      },
+    }
+
+    return (
+      serviceMap[args.service] || {
+        name: args.service,
+        description: "Custom service",
+        duration: 60,
+        price: 99.99,
+      }
+    )
+  },
+})
+
 // Create a booking (internal mutation for agent use)
 export const createBookingInternal = mutation({
   args: {
@@ -178,7 +307,7 @@ export const createBookingInternal = mutation({
       dateTime: args.dateTime,
       service: args.service,
       status: "scheduled",
-      notes: args.notes,
+      notes: args.notes || "",
       createdAt: now,
       updatedAt: now,
     })
@@ -194,6 +323,89 @@ export const createBookingInternal = mutation({
     })
 
     return bookingId
+  },
+})
+
+// Update a booking (internal mutation for agent use)
+export const updateBookingInternal = mutation({
+  args: {
+    tenantId: v.id("tenants"),
+    bookingId: v.id("bookings"),
+    dateTime: v.optional(v.number()),
+    service: v.optional(v.string()),
+    status: v.optional(v.string()),
+    notes: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now()
+
+    // Validate booking exists and belongs to tenant
+    const booking = await ctx.db.get(args.bookingId)
+    if (!booking || booking.tenantId !== args.tenantId) {
+      throw new Error("Booking not found or does not belong to this tenant")
+    }
+
+    // Prepare updates
+    const updates: any = {
+      updatedAt: now,
+    }
+
+    if (args.dateTime !== undefined) updates.dateTime = args.dateTime
+    if (args.service !== undefined) updates.service = args.service
+    if (args.status !== undefined) updates.status = args.status
+    if (args.notes !== undefined) updates.notes = args.notes
+
+    // Update the booking
+    await ctx.db.patch(args.bookingId, updates)
+
+    // Send notification about the updated booking
+    await ctx.db.insert("notifications", {
+      tenantId: args.tenantId,
+      type: "booking_updated",
+      resourceId: args.bookingId,
+      message: `Booking updated: ${booking.service} on ${new Date(booking.dateTime).toLocaleString()}`,
+      isRead: false,
+      createdAt: now,
+    })
+
+    return args.bookingId
+  },
+})
+
+// Cancel a booking (internal mutation for agent use)
+export const cancelBookingInternal = mutation({
+  args: {
+    tenantId: v.id("tenants"),
+    bookingId: v.id("bookings"),
+    reason: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now()
+
+    // Validate booking exists and belongs to tenant
+    const booking = await ctx.db.get(args.bookingId)
+    if (!booking || booking.tenantId !== args.tenantId) {
+      throw new Error("Booking not found or does not belong to this tenant")
+    }
+
+    // Update the booking status
+    await ctx.db.patch(args.bookingId, {
+      status: "cancelled",
+      notes: args.reason ? `${booking.notes || ""}\nCancellation reason: ${args.reason}` : booking.notes,
+      updatedAt: now,
+    })
+
+    // Send notification about the cancelled booking
+    await ctx.db.insert("notifications", {
+      tenantId: args.tenantId,
+      type: "booking_cancelled",
+      resourceId: args.bookingId,
+      message: `Booking cancelled: ${booking.service} on ${new Date(booking.dateTime).toLocaleString()}`,
+      isRead: false,
+      createdAt: now,
+    })
+
+    return args.bookingId
   },
 })
 
