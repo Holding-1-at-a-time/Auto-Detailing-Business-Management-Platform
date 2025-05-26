@@ -485,7 +485,9 @@ export const updateThread = mutation({
         updatedAt: Date.now(),
       }
 
-      if (args.title !== undefined) updates.title = args.title
+      if (args.title !== undefined) {
+        updates.title = args.title
+      }
       if (args.status !== undefined) updates.status = args.status
       if (args.summary !== undefined) updates.summary = args.summary
 
