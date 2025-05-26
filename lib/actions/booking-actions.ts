@@ -1,102 +1,73 @@
 "use server"
 
-import { redirect } from "next/navigation"
-import { api } from "@/convex/_generated/api"
-import { fetchMutation } from "convex/nextjs"
+import { convex } from "@/lib/convex/convex-client"
+import type { Booking } from "@/lib/types"
+import { revalidatePath } from "next/cache"
 
-export interface CreateBookingData {
-  clientName: string
-  clientEmail: string
-  clientPhone: string
-  vehicle: string
-  service: string
-  scheduledDate: Date
-  scheduledTime: string
-  estimatedDuration: number
-  price: number
-  notes?: string
+export async function getBookingById(tenantId: string, bookingId: string) {
+  try {
+    return await convex.query("bookings.getBookingById", {
+      tenantId,
+      bookingId,
+    })
+  } catch (error) {
+    console.error("Error fetching booking:", error)
+    return null
+  }
 }
 
-export async function createBooking(tenantId: string, data: CreateBookingData) {
-  "use server"
-
+export async function createBooking(tenantId: string, data: Partial<Booking>) {
   try {
-    // Create the booking using Convex mutation
-    const bookingId = await fetchMutation(api.bookings.create, {
+    // Convert date object to timestamp if it exists
+    const dateTime = data.dateTime instanceof Date ? data.dateTime.getTime() : undefined
+
+    const result = await convex.mutation("bookings.createBooking", {
       tenantId,
-      clientName: data.clientName,
-      clientEmail: data.clientEmail,
-      clientPhone: data.clientPhone,
-      vehicle: data.vehicle,
-      service: data.service,
-      scheduledDate: data.scheduledDate.toISOString(),
-      scheduledTime: data.scheduledTime,
-      estimatedDuration: data.estimatedDuration,
-      price: data.price,
-      notes: data.notes,
-      status: "scheduled",
+      ...data,
+      dateTime,
     })
 
-    return { success: true, bookingId }
+    revalidatePath(`/${tenantId}/bookings`)
+    return result
   } catch (error) {
-    console.error("Failed to create booking:", error)
+    console.error("Error creating booking:", error)
     throw new Error("Failed to create booking")
   }
 }
 
-export async function createBookingAction(tenantId: string, data: CreateBookingData) {
-  "use server"
-
-  const result = await createBooking(tenantId, data)
-
-  if (result.success) {
-    redirect(`/${tenantId}/bookings`)
-  }
-}
-
-export async function updateBooking(bookingId: string, data: Partial<CreateBookingData>) {
-  "use server"
-
+export async function updateBooking(tenantId: string, bookingId: string, data: Partial<Booking>) {
   try {
-    await fetchMutation(api.bookings.update, {
+    // Convert date object to timestamp if it exists
+    const dateTime = data.dateTime instanceof Date ? data.dateTime.getTime() : undefined
+
+    const result = await convex.mutation("bookings.updateBooking", {
+      tenantId,
       bookingId,
       ...data,
-      scheduledDate: data.scheduledDate?.toISOString(),
+      dateTime,
     })
 
-    return { success: true }
+    revalidatePath(`/${tenantId}/bookings`)
+    revalidatePath(`/${tenantId}/bookings/${bookingId}`)
+    return result
   } catch (error) {
-    console.error("Failed to update booking:", error)
+    console.error("Error updating booking:", error)
     throw new Error("Failed to update booking")
   }
 }
 
-export async function cancelBooking(bookingId: string) {
-  "use server"
-
+export async function deleteBooking(tenantId: string, bookingId: string) {
   try {
-    await fetchMutation(api.bookings.cancel, {
+    const result = await convex.mutation("bookings.deleteBooking", {
+      tenantId,
       bookingId,
     })
 
-    return { success: true }
+    revalidatePath(`/${tenantId}/bookings`)
+    revalidatePath(`/${tenantId}/bookings/${bookingId}`)
+    return result
   } catch (error) {
-    console.error("Failed to cancel booking:", error)
-    throw new Error("Failed to cancel booking")
-  }
-}
-
-export async function completeBooking(bookingId: string) {
-  "use server"
-
-  try {
-    await fetchMutation(api.bookings.complete, {
-      bookingId,
-    })
-
-    return { success: true }
-  } catch (error) {
-    console.error("Failed to complete booking:", error)
-    throw new Error("Failed to complete booking")
+    console.error("Error deleting booking:", error)
+    throw new Error("Failed to delete booking")
   }
 }
