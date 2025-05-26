@@ -3,6 +3,9 @@ import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
+import { ConvexProvider } from "@/lib/convex/convex-provider"
+import ConvexClientProvider from "@/providers/ConvexClientProvider"
+import ReactQueryProvider from "@/providers/ReactQueryProvider"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -63,9 +66,13 @@ export default function RootLayout({
         <meta name="theme-color" content="#00ae98" />
       </head>
       <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} forcedTheme="dark">
-          {children}
-        </ThemeProvider>
+        <ReactQueryProvider>
+          <ConvexProvider>
+            <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} forcedTheme="dark">
+              <ConvexClientProvider>{children}</ConvexClientProvider>
+            </ThemeProvider>
+          </ConvexProvider>
+        </ReactQueryProvider>
       </body>
     </html>
   )

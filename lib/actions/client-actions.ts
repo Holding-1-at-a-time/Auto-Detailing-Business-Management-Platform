@@ -7,6 +7,21 @@ import type { Id } from "../../convex/_generated/dataModel"
 import { handleConvexError } from "../convex/convex-utils"
 
 /**
+ * Get a client by ID
+ */
+export async function getClientById(tenantId: string, clientId: string) {
+  try {
+    return await convex.query(api.clients.getClientById, {
+      tenantId,
+      clientId,
+    })
+  } catch (error) {
+    console.error("Error fetching client:", error)
+    return null
+  }
+}
+
+/**
  * Get clients with optional filtering and pagination
  */
 export async function getClients(
