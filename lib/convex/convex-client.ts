@@ -1,4 +1,5 @@
 import { ConvexClient } from "convex/browser"
+import { api } from "../../convex/_generated/api"
 
 // Initialize the Convex client with the deployment URL
 const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL as string
@@ -20,3 +21,6 @@ export function getTenantScopedClient(tenantId: string) {
     },
   }
 }
+
+// Export the api object for type-safe access to Convex functions
+export { api }

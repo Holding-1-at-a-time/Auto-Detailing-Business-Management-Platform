@@ -4,6 +4,19 @@ import { convex } from "@/lib/convex/convex-client"
 import type { Client } from "@/lib/types"
 import { revalidatePath } from "next/cache"
 
+export async function getClients(tenantId: string, options?: { search?: string; limit?: number }) {
+  try {
+    return await convex.query("clients.getClients", {
+      tenantId,
+      search: options?.search || "",
+      limit: options?.limit || 100,
+    })
+  } catch (error) {
+    console.error("Error fetching clients:", error)
+    return []
+  }
+}
+
 export async function getClientById(tenantId: string, clientId: string) {
   try {
     return await convex.query("clients.getClientById", {

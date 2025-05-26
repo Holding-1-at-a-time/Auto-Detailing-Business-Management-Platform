@@ -1,47 +1,15 @@
-import * as Sentry from "@sentry/nextjs"
+// This file configures the initialization of Sentry on the server.
+// The config you add here will be used whenever the server handles a request.
+// https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
-const SENTRY_DSN = process.env.NEXT_PUBLIC_SENTRY_DSN
-const ENVIRONMENT = process.env.NODE_ENV || "development"
-const RELEASE = process.env.VERCEL_GIT_COMMIT_SHA || "local"
+import * as Sentry from "@sentry/nextjs";
 
 Sentry.init({
-  dsn: SENTRY_DSN,
-  environment: ENVIRONMENT,
-  release: RELEASE,
+  dsn: "https://ad2a64033c71435daf08fd7fab483bfb@o4509388757860352.ingest.us.sentry.io/4509388770508800",
 
-  // Performance Monitoring
-  tracesSampleRate: ENVIRONMENT === "production" ? 0.1 : 1.0,
-  profilesSampleRate: ENVIRONMENT === "production" ? 0.1 : 1.0,
+  // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
+  tracesSampleRate: 1,
 
-  // Debug settings
-  debug: ENVIRONMENT === "development",
-
-  integrations: [
-    new Sentry.Integrations.Http({ tracing: true }),
-    new Sentry.Integrations.OnUncaughtException(),
-    new Sentry.Integrations.OnUnhandledRejection(),
-  ],
-
-  beforeSend(event, hint) {
-    // Add server-specific context
-    if (event.request) {
-      event.tags = {
-        ...event.tags,
-        server: "true",
-      }
-    }
-
-    return event
-  },
-
-  beforeSendTransaction(event) {
-    // Sample transactions in production
-    if (ENVIRONMENT === "production" && Math.random() > 0.1) {
-      return null
-    }
-
-    return event
-  },
-})
-
-import "./lib/sentry"
+  // Setting this option to true will print useful information to the console while you're setting up Sentry.
+  debug: false,
+});
