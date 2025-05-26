@@ -1,3 +1,15 @@
+/**
+    * @description      : 
+    * @author           : rrome
+    * @group            : 
+    * @created          : 26/05/2025 - 08:52:31
+    * 
+    * MODIFICATION LOG
+    * - Version         : 1.0.0
+    * - Date            : 26/05/2025
+    * - Author          : rrome
+    * - Modification    : 
+**/
 import { Agent, createTool } from "@convex-dev/agent"
 import { openai } from "@ai-sdk/openai"
 import { z } from "zod"
@@ -37,12 +49,11 @@ export const bookingAgent = new Agent(components.agent, {
       }),
       handler: async (ctx, args): Promise<Array<{ time: string; available: boolean }>> => {
         // Query for available slots
-        const availableSlots = await ctx.runQuery(internal.scheduling.getAvailableTimeSlots, {
+        return await ctx.runQuery(internal.scheduling.getAvailableTimeSlots, {
           tenantId: args.tenantId as Id<"tenants">,
           date: args.date,
           service: args.service,
-        })
-        return availableSlots
+        });
       },
     }),
 
@@ -93,11 +104,10 @@ export const bookingAgent = new Agent(components.agent, {
         searchTerm: z.string().describe("Name, email, or phone to search for"),
       }),
       handler: async (ctx, args): Promise<Array<{ id: string; name: string; email?: string; phone?: string }>> => {
-        const clients = await ctx.runQuery(internal.scheduling.findClientBySearch, {
+        return await ctx.runQuery(internal.scheduling.findClientBySearch, {
           tenantId: args.tenantId as Id<"tenants">,
           search: args.searchTerm,
-        })
-        return clients
+        });
       },
     }),
 
@@ -157,13 +167,12 @@ export const bookingAgent = new Agent(components.agent, {
           notes?: string
         }>
       > => {
-        const pastBookings = await ctx.runQuery(internal.scheduling.getPastBookings, {
+        return await ctx.runQuery(internal.scheduling.getPastBookings, {
           tenantId: args.tenantId as Id<"tenants">,
           clientId: args.clientId as Id<"clients"> | undefined,
           service: args.service,
           limit: args.limit,
-        })
-        return pastBookings
+        });
       },
     }),
 
@@ -183,11 +192,10 @@ export const bookingAgent = new Agent(components.agent, {
         duration: number
         price: number
       }> => {
-        const serviceDetails = await ctx.runQuery(internal.scheduling.getServiceDetails, {
+        return await ctx.runQuery(internal.scheduling.getServiceDetails, {
           tenantId: args.tenantId as Id<"tenants">,
           service: args.service,
-        })
-        return serviceDetails
+        });
       },
     }),
   },
@@ -255,10 +263,8 @@ export const createThread = mutation({
   handler: async (ctx, args) => {
     const { threadId, thread } = await bookingAgent.createThread(ctx, {
       userId: args.userId,
-      metadata: {
-        tenantId: args.tenantId,
-        title: args.title,
-      },
+      // Remove 'metadata' property, and instead pass 'title' directly if supported
+      title: args.title,
     })
 
     // Store thread metadata in our own table for easier querying
@@ -273,294 +279,292 @@ export const createThread = mutation({
     })
 
     return { threadId, thread }
-  },
-})
+  }
+});
 
-// Continue an existing thread
-export const continueThread = mutation({
-  args: {
-    tenantId: v.id("tenants"),
-    threadId: v.string(),
-    userId: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    // Verify thread belongs to tenant
-    const thread = await ctx.db
-      .query("agentThreads")
-      .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
-      .filter((q) => q.eq(q.field("tenantId"), args.tenantId))
-      .first()
+  // Continue an existing thread
+  export const continueThread = mutation({
+    args: {
+      tenantId: v.id("tenants"),
+      threadId: v.string(),
+      userId: v.optional(v.string()),
+    },
+    handler: async (ctx, args) => {
+      // Verify thread belongs to tenant
+      const thread = await ctx.db
+        .query("agentThreads")
+        .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
+        .filter((q) => q.eq(q.field("tenantId"), args.tenantId))
+        .first()
 
-    if (!thread) {
-      throw new Error("Thread not found or does not belong to this tenant")
-    }
+      if (!thread) {
+        throw new Error("Thread not found or does not belong to this tenant")
+      }
 
-    const result = await bookingAgent.continueThread(ctx, {
-      threadId: args.threadId,
-      userId: args.userId,
-    })
-
-    return result
-  },
-})
+      return await bookingAgent.continueThread(ctx, {
+        threadId: args.threadId,
+        userId: args.userId,
+      });
+    },
+  })
 
 // Generate text with the agent
 export const generateText = action({
-  args: {
-    tenantId: v.id("tenants"),
-    threadId: v.string(),
-    prompt: v.string(),
-    userId: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    // Continue the thread
-    const { thread } = await bookingAgent.continueThread(ctx, {
-      threadId: args.threadId,
-      userId: args.userId,
-    })
+    args: {
+      tenantId: v.id("tenants"),
+      threadId: v.string(),
+      prompt: v.string(),
+      userId: v.optional(v.string()),
+    },
+    handler: async (ctx, args) => {
+      // Continue the thread
+      const { thread } = await bookingAgent.continueThread(ctx, {
+        threadId: args.threadId,
+        userId: args.userId,
+      })
 
-    // Generate text with streaming
-    const result = await thread.generateText({
-      prompt: args.prompt,
-    })
+      // Generate text with streaming
+      const result = await thread.generateText({
+        prompt: args.prompt,
+      })
 
-    return result
-  },
-})
+      return result
+    },
+  })
 
 // Stream text with the agent (for real-time UI updates)
 export const streamText = action({
-  args: {
-    tenantId: v.id("tenants"),
-    threadId: v.string(),
-    prompt: v.string(),
-    userId: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    // Continue the thread
-    const { thread } = await bookingAgent.continueThread(ctx, {
-      threadId: args.threadId,
-      userId: args.userId,
-    })
+    args: {
+      tenantId: v.id("tenants"),
+      threadId: v.string(),
+      prompt: v.string(),
+      userId: v.optional(v.string()),
+    },
+    handler: async (ctx, args) => {
+      // Continue the thread
+      const { thread } = await bookingAgent.continueThread(ctx, {
+        threadId: args.threadId,
+        userId: args.userId,
+      })
 
-    // Generate text with streaming
-    const stream = await thread.streamText({
-      prompt: args.prompt,
-    })
+      // Generate text with streaming
+      const stream = await thread.streamText({
+        prompt: args.prompt,
+      })
 
-    return stream
-  },
-})
+      return stream
+    },
+  })
 
 // Generate a structured object with the agent
 export const generateObject = action({
-  args: {
-    tenantId: v.id("tenants"),
-    threadId: v.string(),
-    prompt: v.string(),
-    userId: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    // Continue the thread
-    const { thread } = await bookingAgent.continueThread(ctx, {
-      threadId: args.threadId,
-      userId: args.userId,
-    })
+    args: {
+      tenantId: v.id("tenants"),
+      threadId: v.string(),
+      prompt: v.string(),
+      userId: v.optional(v.string()),
+    },
+    handler: async (ctx, args) => {
+      // Continue the thread
+      const { thread } = await bookingAgent.continueThread(ctx, {
+        threadId: args.threadId,
+        userId: args.userId,
+      })
 
-    // Generate a booking object
-    const result = await thread.generateObject({
-      prompt: args.prompt,
-      schema: z.object({
-        service: z.string().describe("The auto-detailing service requested"),
-        date: z.string().describe("The requested date in YYYY-MM-DD format"),
-        time: z.string().describe("The requested time in HH:MM format"),
-        clientName: z.string().describe("The client's full name"),
-        clientEmail: z.string().optional().describe("The client's email address"),
-        clientPhone: z.string().optional().describe("The client's phone number"),
-        notes: z.string().optional().describe("Any additional notes about the booking"),
-      }),
-    })
+      // Generate a booking object
+      const result = await thread.generateObject({
+        prompt: args.prompt,
+        schema: z.object({
+          service: z.string().describe("The auto-detailing service requested"),
+          date: z.string().describe("The requested date in YYYY-MM-DD format"),
+          time: z.string().describe("The requested time in HH:MM format"),
+          clientName: z.string().describe("The client's full name"),
+          clientEmail: z.string().optional().describe("The client's email address"),
+          clientPhone: z.string().optional().describe("The client's phone number"),
+          notes: z.string().optional().describe("Any additional notes about the booking"),
+        }),
+      })
 
-    return result
-  },
-})
+      return result
+    },
+  })
 
 // Stream a structured object with the agent
 export const streamObject = action({
-  args: {
-    tenantId: v.id("tenants"),
-    threadId: v.string(),
-    prompt: v.string(),
-    userId: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    // Continue the thread
-    const { thread } = await bookingAgent.continueThread(ctx, {
-      threadId: args.threadId,
-      userId: args.userId,
-    })
+    args: {
+      tenantId: v.id("tenants"),
+      threadId: v.string(),
+      prompt: v.string(),
+      userId: v.optional(v.string()),
+    },
+    handler: async (ctx, args) => {
+      // Continue the thread
+      const { thread } = await bookingAgent.continueThread(ctx, {
+        threadId: args.threadId,
+        userId: args.userId,
+      })
 
-    // Stream a booking object
-    const stream = await thread.streamObject({
-      prompt: args.prompt,
-      schema: z.object({
-        service: z.string().describe("The auto-detailing service requested"),
-        date: z.string().describe("The requested date in YYYY-MM-DD format"),
-        time: z.string().describe("The requested time in HH:MM format"),
-        clientName: z.string().describe("The client's full name"),
-        clientEmail: z.string().optional().describe("The client's email address"),
-        clientPhone: z.string().optional().describe("The client's phone number"),
-        notes: z.string().optional().describe("Any additional notes about the booking"),
-      }),
-    })
+      // Stream a booking object
+      const stream = await thread.streamObject({
+        prompt: args.prompt,
+        schema: z.object({
+          service: z.string().describe("The auto-detailing service requested"),
+          date: z.string().describe("The requested date in YYYY-MM-DD format"),
+          time: z.string().describe("The requested time in HH:MM format"),
+          clientName: z.string().describe("The client's full name"),
+          clientEmail: z.string().optional().describe("The client's email address"),
+          clientPhone: z.string().optional().describe("The client's phone number"),
+          notes: z.string().optional().describe("Any additional notes about the booking"),
+        }),
+      })
 
-    return stream
-  },
-})
+      return stream
+    },
+  })
 
 // List threads for a user
 export const listThreads = query({
-  args: {
-    tenantId: v.id("tenants"),
-    userId: v.optional(v.string()),
-    limit: v.optional(v.number()),
-  },
-  handler: async (ctx, args) => {
-    const query = ctx.db.query("agentThreads").withIndex("by_tenant", (q) => q.eq("tenantId", args.tenantId))
+    args: {
+      tenantId: v.id("tenants"),
+      userId: v.optional(v.string()),
+      limit: v.optional(v.number()),
+    },
+    handler: async (ctx, args) => {
+      const query = ctx.db.query("agentThreads").withIndex("by_tenant", (q) => q.eq("tenantId", args.tenantId))
 
-    const filteredQuery = args.userId ? query.filter((q) => q.eq(q.field("userId"), args.userId)) : query
+      const filteredQuery = args.userId ? query.filter((q) => q.eq(q.field("userId"), args.userId)) : query
 
-    const threads = await filteredQuery.order("desc").take(args.limit || 10)
+      const threads = await filteredQuery.order("desc").take(args.limit || 10)
 
-    return threads
-  },
-})
+      return threads
+    },
+  })
 
 // Get thread details
 export const getThread = query({
-  args: {
-    tenantId: v.id("tenants"),
-    threadId: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const thread = await ctx.db
-      .query("agentThreads")
-      .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
-      .filter((q) => q.eq(q.field("tenantId"), args.tenantId))
-      .first()
+    args: {
+      tenantId: v.id("tenants"),
+      threadId: v.string(),
+    },
+    handler: async (ctx, args) => {
+      const thread = await ctx.db
+        .query("agentThreads")
+        .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
+        .filter((q) => q.eq(q.field("tenantId"), args.tenantId))
+        .first()
 
-    if (!thread) {
-      throw new Error("Thread not found or does not belong to this tenant")
-    }
+      if (!thread) {
+        throw new Error("Thread not found or does not belong to this tenant")
+      }
 
-    return thread
-  },
-})
+      return thread
+    },
+  })
 
 // Update thread metadata
 export const updateThread = mutation({
-  args: {
-    tenantId: v.id("tenants"),
-    threadId: v.string(),
-    title: v.optional(v.string()),
-    status: v.optional(v.string()),
-    summary: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    const thread = await ctx.db
-      .query("agentThreads")
-      .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
-      .filter((q) => q.eq(q.field("tenantId"), args.tenantId))
-      .first()
+    args: {
+      tenantId: v.id("tenants"),
+      threadId: v.string(),
+      title: v.optional(v.string()),
+      status: v.optional(v.string()),
+      summary: v.optional(v.string()),
+    },
+    handler: async (ctx, args) => {
+      const thread = await ctx.db
+        .query("agentThreads")
+        .withIndex("by_threadId", (q) => q.eq("threadId", args.threadId))
+        .filter((q) => q.eq(q.field("tenantId"), args.tenantId))
+        .first()
 
-    if (!thread) {
-      throw new Error("Thread not found or does not belong to this tenant")
-    }
+      if (!thread) {
+        throw new Error("Thread not found or does not belong to this tenant")
+      }
 
-    const updates: any = {
-      updatedAt: Date.now(),
-    }
+      const updates: any = {
+        updatedAt: Date.now(),
+      }
 
-    if (args.title !== undefined) updates.title = args.title
-    if (args.status !== undefined) updates.status = args.status
-    if (args.summary !== undefined) updates.summary = args.summary
+      if (args.title !== undefined) updates.title = args.title
+      if (args.status !== undefined) updates.status = args.status
+      if (args.summary !== undefined) updates.summary = args.summary
 
-    await ctx.db.patch(thread._id, updates)
+      await ctx.db.patch(thread._id, updates)
 
-    return { success: true }
-  },
-})
+      return { success: true }
+    },
+  })
 
 // Search messages across threads
 export const searchMessages = action({
-  args: {
-    tenantId: v.id("tenants"),
-    query: v.string(),
-    userId: v.optional(v.string()),
-    limit: v.optional(v.number()),
-  },
-  handler: async (ctx, args) => {
-    // Get all threads for this tenant and optionally user
-    const threads = await ctx.runQuery(internal.agent.listThreads, {
-      tenantId: args.tenantId,
-      userId: args.userId,
-      limit: 50, // Get more threads to search through
-    })
+    args: {
+      tenantId: v.id("tenants"),
+      query: v.string(),
+      userId: v.optional(v.string()),
+      limit: v.optional(v.number()),
+    },
+    handler: async (ctx, args) => {
+      // Get all threads for this tenant and optionally user
+      const threads = await ctx.runQuery(internal.agent.listThreads, {
+        tenantId: args.tenantId,
+        userId: args.userId,
+        limit: 50, // Get more threads to search through
+      })
 
-    // Collect all thread IDs
-    const threadIds = threads.map((thread) => thread.threadId)
+      // Collect all thread IDs
+      const threadIds = threads.map((thread) => thread.threadId)
 
-    // Search messages across all these threads
-    const messages = []
-    for (const threadId of threadIds) {
-      try {
-        const threadMessages = await ctx.runQuery(components.agent.messages.searchMessages, {
-          threadId,
-          query: args.query,
-          textSearch: true,
-          vectorSearch: true,
-          limit: args.limit || 10,
-        })
-
-        messages.push(
-          ...threadMessages.map((msg) => ({
-            ...msg,
+      // Search messages across all these threads
+      const messages = []
+      for (const threadId of threadIds) {
+        try {
+          const threadMessages = await ctx.runQuery(components.agent.messages.searchMessages, {
             threadId,
-            threadTitle: threads.find((t) => t.threadId === threadId)?.title || "Unknown Thread",
-          })),
-        )
-      } catch (error) {
-        console.error(`Error searching messages in thread ${threadId}:`, error)
-      }
-    }
+            query: args.query,
+            textSearch: true,
+            vectorSearch: true,
+            limit: args.limit || 10,
+          })
 
-    // Sort by relevance (if available) or by timestamp
-    messages.sort((a, b) => {
-      if (a.relevance && b.relevance) {
-        return b.relevance - a.relevance
+          messages.push(
+            ...threadMessages.map((msg) => ({
+              ...msg,
+              threadId,
+              threadTitle: threads.find((t) => t.threadId === threadId)?.title || "Unknown Thread",
+            })),
+          )
+        } catch (error) {
+          console.error(`Error searching messages in thread ${threadId}:`, error)
+        }
       }
-      return b.createdAt - a.createdAt
-    })
 
-    return messages.slice(0, args.limit || 10)
-  },
-})
+      // Sort by relevance (if available) or by timestamp
+      messages.sort((a, b) => {
+        if (a.relevance && b.relevance) {
+          return b.relevance - a.relevance
+        }
+        return b.createdAt - a.createdAt
+      })
+
+      return messages.slice(0, args.limit || 10)
+    },
+  })
 
 // Export actions for use in workflows
 export const createThreadMutation = bookingAgent.createThreadMutation()
 export const continueThreadMutation = bookingAgent.continueThreadMutation()
 export const generateTextAction = bookingAgent.asTextAction({
-  maxSteps: 10,
-})
+    maxSteps: 10,
+  })
 export const generateObjectAction = bookingAgent.asObjectAction({
-  schema: z.object({
-    service: z.string(),
-    date: z.string(),
-    time: z.string(),
-    clientName: z.string(),
-    clientEmail: z.string().optional(),
-    clientPhone: z.string().optional(),
-    notes: z.string().optional(),
-  }),
-  maxSteps: 10,
-})
+    schema: z.object({
+      service: z.string(),
+      date: z.string(),
+      time: z.string(),
+      clientName: z.string(),
+      clientEmail: z.string().optional(),
+      clientPhone: z.string().optional(),
+      notes: z.string().optional(),
+    }),
+    maxSteps: 10,
+  })

@@ -20,7 +20,6 @@
     "@convex-dev/rate-limiter": "latest",
     "@convex-dev/workflow": "latest",
     "@convex-dev/workpool": "latest",
-    "@convexus/shared": "latest",
     "@hookform/resolvers": "latest",
     "@radix-ui/react-accordion": "1.2.2",
     "@radix-ui/react-alert-dialog": "1.1.4",
