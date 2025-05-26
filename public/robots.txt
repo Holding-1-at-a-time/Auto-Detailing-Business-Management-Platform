@@ -1,18 +1,4 @@
-# Detail Synk Robots.txt
 User-agent: *
-Disallow: /app/api/
-Disallow: /api/
-Disallow: /dashboard/
-Disallow: /settings/
-Disallow: /admin/
-Disallow: /monitoring/
-
-# Allow important pages
 Allow: /
-Allow: /pricing
-Allow: /features
-Allow: /about
-Allow: /contact
 
-# Sitemap
-Sitemap: https://detailsynk.com/sitemap.xml
+Sitemap: https://detailsync.com/sitemap.xml
