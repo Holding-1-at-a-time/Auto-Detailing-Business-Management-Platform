@@ -1,3 +1,15 @@
+/**
+    * @description      : 
+    * @author           : rrome
+    * @group            : 
+    * @created          : 26/05/2025 - 08:09:15
+    * 
+    * MODIFICATION LOG
+    * - Version         : 1.0.0
+    * - Date            : 26/05/2025
+    * - Author          : rrome
+    * - Modification    : 
+**/
 /* eslint-disable */
 /**
  * Generated `api` utility.
@@ -15,13 +27,13 @@ import type {
 } from "convex/server";
 import type * as agent from "../agent.js";
 import type * as analytics from "../analytics.js";
-import type * as booking_workflow from "../booking-workflow.js";
+import type * as booking_workflow from "../bookingWorkflow.js";
 import type * as bookings from "../bookings.js";
 import type * as clients from "../clients.js";
 import type * as googleCalendar from "../googleCalendar.js";
 import type * as notifications from "../notifications.js";
 import type * as scheduling from "../scheduling.js";
-import type * as schema_extension from "../schema-extension.js";
+import type * as schema_extension from "../schemaExtension.js";
 import type * as seed from "../seed.js";
 import type * as tenants from "../tenants.js";
 import type * as users from "../users.js";
@@ -37,13 +49,13 @@ import type * as users from "../users.js";
 declare const fullApi: ApiFromModules<{
   agent: typeof agent;
   analytics: typeof analytics;
-  "booking-workflow": typeof booking_workflow;
+  "bookingWorkflow": typeof booking_workflow;
   bookings: typeof bookings;
   clients: typeof clients;
   googleCalendar: typeof googleCalendar;
   notifications: typeof notifications;
   scheduling: typeof scheduling;
-  "schema-extension": typeof schema_extension;
+  "schemaExtension": typeof schema_extension;
   seed: typeof seed;
   tenants: typeof tenants;
   users: typeof users;
@@ -56,3 +68,19 @@ export declare const internal: FilterApi<
   typeof fullApi,
   FunctionReference<any, "internal">
 >;
+export {
+  fullApi,
+  agent,
+  analytics,
+  bookingWorkflow,
+  bookings,
+  clients,
+  googleCalendar,
+  notifications,
+  scheduling,
+  schemaExtension,
+  seed,
+  tenants,
+  users,
+};
+

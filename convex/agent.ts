@@ -1,3 +1,15 @@
+/**
+    * @description      : 
+    * @author           : rrome
+    * @group            : 
+    * @created          : 26/05/2025 - 08:04:57
+    * 
+    * MODIFICATION LOG
+    * - Version         : 1.0.0
+    * - Date            : 26/05/2025
+    * - Author          : rrome
+    * - Modification    : 
+**/
 import { Agent, createTool } from "@convex-dev/agent"
 import { openai } from "@ai-sdk/openai"
 import { z } from "zod"
