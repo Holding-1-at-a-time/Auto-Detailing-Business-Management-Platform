@@ -1,29 +1,19 @@
-/**
-    * @description      : 
-    * @author           : rrome
-    * @group            : 
-    * @created          : 26/05/2025 - 09:06:49
-    * 
-    * MODIFICATION LOG
-    * - Version         : 1.0.0
-    * - Date            : 26/05/2025
-    * - Author          : rrome
-    * - Modification    : 
-**/
 "use client"
 
 import { Button } from "@/components/ui/button"
 import { useEffect } from "react"
-import Error from "next/error";
-import { useEffect } from "react";
 
-
-export default function GlobalError({ error }: { error: Error }) {
+export default function GlobalError({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string }
+  reset: () => void
+}) {
   useEffect(() => {
     // Log the error to an error reporting service
-    Sentry.captureException(error);
     console.error(error)
-  }, [error]),  [error];
+  }, [error])
 
   return (
     <html>
