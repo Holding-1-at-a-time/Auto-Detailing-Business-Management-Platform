@@ -8,6 +8,17 @@ export const getTenant = query({
   },
 })
 
+export const getTenantById = query({
+  args: { tenantId: v.id("tenants") },
+  handler: async (ctx, args) => {
+    const tenant = await ctx.db.get(args.tenantId)
+    if (!tenant) {
+      return null
+    }
+    return tenant
+  },
+})
+
 export const getTenantByName = query({
   args: { name: v.string() },
   handler: async (ctx, args) => {
@@ -20,6 +31,50 @@ export const getTenantByName = query({
   },
 })
 
+export const getBySlug = query({
+  args: { slug: v.string() },
+  handler: async (ctx, args) => {
+    // Convert slug to tenant name (assuming slug is lowercase with hyphens)
+    const name = args.slug
+      .split("-")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ")
+
+    const tenants = await ctx.db
+      .query("tenants")
+      .withIndex("by_name", (q) => q.eq("name", name))
+      .collect()
+
+    return tenants[0] || null
+  },
+})
+
+export const getUserTenants = query({
+  args: { userId: v.string() },
+  handler: async (ctx, args) => {
+    // Get user by userId
+    const users = await ctx.db
+      .query("users")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .collect()
+
+    const user = users[0]
+    if (!user) {
+      return []
+    }
+
+    // Get all tenants for this user
+    const tenants = await Promise.all(
+      user.tenants.map(async (tenantId) => {
+        const tenant = await ctx.db.get(tenantId as any)
+        return tenant
+      }),
+    )
+
+    return tenants.filter(Boolean)
+  },
+})
+
 export const createTenant = mutation({
   args: {
     name: v.string(),
@@ -29,6 +84,11 @@ export const createTenant = mutation({
     userEmail: v.string(),
   },
   handler: async (ctx, args) => {
+    // Validate name
+    if (!args.name || args.name.trim().length === 0) {
+      throw new Error("Tenant name is required")
+    }
+
     // Check if tenant already exists
     const existingTenants = await ctx.db
       .query("tenants")
@@ -105,11 +165,45 @@ export const updateTenant = mutation({
       updatedAt: Date.now(),
     }
 
-    if (args.name !== undefined) updates.name = args.name
+    if (args.name !== undefined) {
+      // Validate name
+      if (args.name.trim().length === 0) {
+        throw new Error("Tenant name cannot be empty")
+      }
+
+      // Check if another tenant has this name
+      const existingTenants = await ctx.db
+        .query("tenants")
+        .withIndex("by_name", (q) => q.eq("name", args.name))
+        .collect()
+
+      if (existingTenants.length > 0 && existingTenants[0]._id !== args.tenantId) {
+        throw new Error(`Another tenant with name "${args.name}" already exists`)
+      }
+
+      updates.name = args.name
+    }
+
     if (args.timezone !== undefined) updates.timezone = args.timezone
     if (args.logoUrl !== undefined) updates.logoUrl = args.logoUrl
 
     await ctx.db.patch(args.tenantId, updates)
+
+    // Update tenant settings if needed
+    if (args.name !== undefined || args.timezone !== undefined) {
+      const settings = await ctx.db
+        .query("tenantSettings")
+        .withIndex("by_tenantId", (q) => q.eq("tenantId", args.tenantId))
+        .first()
+
+      if (settings) {
+        const settingsUpdates: any = { updatedAt: Date.now() }
+        if (args.name !== undefined) settingsUpdates.businessName = args.name
+        if (args.timezone !== undefined) settingsUpdates.timezone = args.timezone
+
+        await ctx.db.patch(settings._id, settingsUpdates)
+      }
+    }
 
     return args.tenantId
   },
@@ -143,7 +237,23 @@ export const updateTenantSettings = mutation({
       .first()
 
     if (!settings) {
-      throw new Error("Tenant settings not found")
+      // Create settings if they don't exist
+      const tenant = await ctx.db.get(args.tenantId)
+      if (!tenant) {
+        throw new Error("Tenant not found")
+      }
+
+      await ctx.db.insert("tenantSettings", {
+        tenantId: args.tenantId,
+        businessName: args.businessName || tenant.name,
+        timezone: args.timezone || tenant.timezone,
+        logoUrl: args.logoUrl,
+        calendarConnected: args.calendarConnected || false,
+        googleCalendarId: args.googleCalendarId,
+        updatedAt: Date.now(),
+      })
+
+      return args.tenantId
     }
 
     const updates: any = {
@@ -159,5 +269,93 @@ export const updateTenantSettings = mutation({
     await ctx.db.patch(settings._id, updates)
 
     return settings._id
+  },
+})
+
+export const deleteTenant = mutation({
+  args: {
+    tenantId: v.id("tenants"),
+    userId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Verify tenant exists
+    const tenant = await ctx.db.get(args.tenantId)
+    if (!tenant) {
+      throw new Error("Tenant not found")
+    }
+
+    // Verify user has access to this tenant
+    const users = await ctx.db
+      .query("users")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .collect()
+
+    const user = users[0]
+    if (!user || !user.tenants.includes(args.tenantId)) {
+      throw new Error("Unauthorized: User does not have access to this tenant")
+    }
+
+    // Delete all related data
+    // 1. Delete bookings
+    const bookings = await ctx.db
+      .query("bookings")
+      .withIndex("by_tenant", (q) => q.eq("tenantId", args.tenantId))
+      .collect()
+
+    for (const booking of bookings) {
+      await ctx.db.delete(booking._id)
+    }
+
+    // 2. Delete clients
+    const clients = await ctx.db
+      .query("clients")
+      .withIndex("by_tenant", (q) => q.eq("tenantId", args.tenantId))
+      .collect()
+
+    for (const client of clients) {
+      await ctx.db.delete(client._id)
+    }
+
+    // 3. Delete notifications
+    const notifications = await ctx.db
+      .query("notifications")
+      .withIndex("by_tenant", (q) => q.eq("tenantId", args.tenantId))
+      .collect()
+
+    for (const notification of notifications) {
+      await ctx.db.delete(notification._id)
+    }
+
+    // 4. Delete tenant settings
+    const settings = await ctx.db
+      .query("tenantSettings")
+      .withIndex("by_tenantId", (q) => q.eq("tenantId", args.tenantId))
+      .first()
+
+    if (settings) {
+      await ctx.db.delete(settings._id)
+    }
+
+    // 5. Delete Google Calendar tokens
+    const tokens = await ctx.db
+      .query("googleCalendarTokens")
+      .withIndex("by_tenantId", (q) => q.eq("tenantId", args.tenantId))
+      .first()
+
+    if (tokens) {
+      await ctx.db.delete(tokens._id)
+    }
+
+    // 6. Remove tenant from user's tenant list
+    const updatedTenants = user.tenants.filter((id) => id !== args.tenantId)
+    await ctx.db.patch(user._id, {
+      tenants: updatedTenants,
+      updatedAt: Date.now(),
+    })
+
+    // 7. Finally, delete the tenant
+    await ctx.db.delete(args.tenantId)
+
+    return { success: true }
   },
 })
