@@ -1,20 +1,9 @@
-import { UserProfile } from "@clerk/nextjs"
-import { dark } from "@clerk/themes"
+import { EnhancedProfile } from "@/components/profile/enhanced-profile"
 
 export default function UserProfilePage() {
   return (
     <div className="container mx-auto py-10">
-      <UserProfile
-        appearance={{
-          baseTheme: dark,
-          elements: {
-            card: "shadow-none",
-            navbar: "hidden",
-            rootBox: "mx-auto max-w-3xl",
-          },
-        }}
-        path="/profile"
-      />
+      <EnhancedProfile />
     </div>
   )
 }

@@ -27,7 +27,16 @@ export async function POST(req: Request) {
   const body = JSON.stringify(payload)
 
   // Create a new Svix instance with your webhook secret
-  const wh = new Webhook(process.env.CLERK_WEBHOOK_SECRET || "")
+  const webhookSecret = process.env.CLERK_WEBHOOK_SECRET
+
+  if (!webhookSecret) {
+    console.error("Error: CLERK_WEBHOOK_SECRET is not set")
+    return new Response("Error: Missing webhook secret", {
+      status: 500,
+    })
+  }
+
+  const wh = new Webhook(webhookSecret)
 
   let evt: WebhookEvent
 
@@ -88,10 +97,10 @@ export async function POST(req: Request) {
     const { id } = evt.data
 
     try {
-      // Handle user deletion in Convex (you might want to implement this)
-      // await convex.mutation(api.users.deleteUser, { userId: id });
+      // Handle user deletion in Convex
+      await convex.mutation(api.users.deactivateUser, { userId: id })
     } catch (error) {
-      console.error("Error deleting user in Convex:", error)
+      console.error("Error deactivating user in Convex:", error)
     }
   }
 
@@ -129,6 +138,29 @@ export async function POST(req: Request) {
         }
       } catch (error) {
         console.error("Error adding user to organization in Convex:", error)
+      }
+    }
+  }
+
+  if (eventType === "organizationMembership.deleted") {
+    const { organization, public_user_data } = evt.data
+
+    if (organization?.id && public_user_data?.user_id) {
+      try {
+        // Get tenant by Clerk org ID
+        const tenant = await convex.query(api.tenants.getTenantByClerkOrgId, {
+          clerkOrgId: organization.id,
+        })
+
+        if (tenant) {
+          // Remove user from tenant in Convex
+          await convex.mutation(api.users.removeTenantFromUser, {
+            userId: public_user_data.user_id,
+            tenantId: tenant._id,
+          })
+        }
+      } catch (error) {
+        console.error("Error removing user from organization in Convex:", error)
       }
     }
   }
