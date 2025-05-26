@@ -1,56 +1,105 @@
-"use client"
-
-import { useQuery, useMutation } from "convex/react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import type { Booking } from "../types"
+import {
+  createBooking as createBookingApi,
+  deleteBooking as deleteBookingApi,
+  getBooking as getBookingApi,
+  getBookings as getBookingsApi,
+  updateBooking as updateBookingApi,
+} from "../api/bookings"
 import { useTenant } from "./useTenant"
-import type { Booking } from "@/lib/types"
 
-interface BookingFilters {
-  upcoming?: boolean
-  clientId?: string
-  limit?: number
-  status?: "scheduled" | "completed" | "cancelled"
-}
-
-export function useBookings(filters: BookingFilters = {}) {
+export const useBookings = () => {
   const { tenantId } = useTenant()
+  const queryClient = useQueryClient()
 
-  const bookings = useQuery("bookings.getBookings", {
-    tenantId,
-    ...filters,
-  }) as Booking[] | undefined
+  const getBookings = async (): Promise<Booking[]> => {
+    if (!tenantId) {
+      return []
+    }
 
-  const createBookingMutation = useMutation("bookings.createBooking")
-  const updateBookingMutation = useMutation("bookings.updateBooking")
-  const deleteBookingMutation = useMutation("bookings.deleteBooking")
-
-  const createBooking = async (data: Omit<Booking, "id" | "tenantId" | "createdAt" | "updatedAt">) => {
-    return await createBookingMutation({
-      tenantId,
-      ...data,
-    })
+    return await getBookingsApi(tenantId)
   }
 
-  const updateBooking = async (id: string, updates: Partial<Booking>) => {
-    return await updateBookingMutation({
-      tenantId,
-      id,
-      ...updates,
-    })
+  const getBooking = async (id: string): Promise<Booking | null> => {
+    if (!tenantId) {
+      return null
+    }
+
+    return await getBookingApi(tenantId, id)
+  }
+
+  const createBooking = async (booking: Omit<Booking, "id">): Promise<Booking> => {
+    if (!tenantId) {
+      throw new Error("Tenant ID is required")
+    }
+
+    return await createBookingApi(tenantId, booking)
+  }
+
+  const updateBooking = async (booking: Booking): Promise<Booking> => {
+    if (!tenantId) {
+      throw new Error("Tenant ID is required")
+    }
+
+    return await updateBookingApi(tenantId, booking)
   }
 
   const deleteBooking = async (id: string) => {
-    return await updateBookingMutation({
+    return await deleteBookingApi({
       tenantId,
-      id,
-      status: "cancelled",
+      bookingId: id,
     })
   }
 
+  const {
+    data: bookings,
+    isLoading,
+    isError,
+  } = useQuery(["bookings", tenantId], getBookings, {
+    enabled: !!tenantId,
+  })
+
+  const {
+    data: booking,
+    isLoading: isBookingLoading,
+    isError: isBookingError,
+  } = useQuery(["booking"], getBooking, {
+    enabled: false,
+  })
+
+  const createBookingMutation = useMutation(createBooking, {
+    onSuccess: () => {
+      queryClient.invalidateQueries(["bookings"])
+    },
+  })
+
+  const updateBookingMutation = useMutation(updateBooking, {
+    onSuccess: () => {
+      queryClient.invalidateQueries(["bookings"])
+    },
+  })
+
+  const deleteBookingMutation = useMutation(deleteBookingApi, {
+    onSuccess: () => {
+      queryClient.invalidateQueries(["bookings"])
+    },
+  })
+
   return {
     bookings,
-    isLoading: bookings === undefined,
-    createBooking,
-    updateBooking,
-    deleteBooking,
+    booking,
+    isLoading,
+    isBookingLoading,
+    isError,
+    isBookingError,
+    createBooking: createBookingMutation.mutateAsync,
+    updateBooking: updateBookingMutation.mutateAsync,
+    deleteBooking: async (id: string) => {
+      return await deleteBookingMutation.mutateAsync({ tenantId: tenantId!, bookingId: id })
+    },
+    createBookingMutation,
+    updateBookingMutation,
+    deleteBookingMutation,
   }
 }

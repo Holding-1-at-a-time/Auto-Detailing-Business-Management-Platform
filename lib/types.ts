@@ -4,20 +4,22 @@ export interface Tenant {
   timezone: string
   stripeCustomerId?: string
   logoUrl?: string
-  createdAt: Date
-  updatedAt: Date
+  createdAt: number | Date
+  updatedAt: number | Date
 }
 
 export interface Booking {
   id: string
   tenantId: string
   clientId: string
-  dateTime: Date
+  dateTime: number | Date
   service: string
   status: "scheduled" | "completed" | "cancelled"
   notes?: string
-  createdAt: Date
-  updatedAt: Date
+  googleEventId?: string
+  createdAt: number | Date
+  updatedAt: number | Date
+  client?: Client // For joined queries
 }
 
 export interface Client {
@@ -28,8 +30,8 @@ export interface Client {
   phone?: string
   notes?: string
   isDeleted: boolean
-  createdAt: Date
-  updatedAt: Date
+  createdAt: number | Date
+  updatedAt: number | Date
 }
 
 export interface User {
@@ -38,7 +40,13 @@ export interface User {
   tenants: string[] // Array of tenant IDs the user has access to
 }
 
-export type ServiceType = "wax" | "polish" | "interior" | "ceramic" | "full-detail"
+export type ServiceType =
+  | "Basic Wash"
+  | "Interior Detailing"
+  | "Exterior Detailing"
+  | "Full Detailing"
+  | "Ceramic Coating"
+  | "Paint Correction"
 
 export interface TenantSettings {
   id: string
@@ -48,5 +56,14 @@ export interface TenantSettings {
   logoUrl?: string
   calendarConnected: boolean
   googleCalendarId?: string
-  updatedAt: Date
+  updatedAt: number | Date
+}
+
+// Helper functions for date conversion
+export function toDate(timestamp: number | Date): Date {
+  return timestamp instanceof Date ? timestamp : new Date(timestamp)
+}
+
+export function toTimestamp(date: Date | number): number {
+  return date instanceof Date ? date.getTime() : date
 }

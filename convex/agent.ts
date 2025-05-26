@@ -1,15 +1,3 @@
-/**
-    * @description      : 
-    * @author           : rrome
-    * @group            : 
-    * @created          : 26/05/2025 - 08:04:57
-    * 
-    * MODIFICATION LOG
-    * - Version         : 1.0.0
-    * - Date            : 26/05/2025
-    * - Author          : rrome
-    * - Modification    : 
-**/
 import { Agent, createTool } from "@convex-dev/agent"
 import { openai } from "@ai-sdk/openai"
 import { z } from "zod"
@@ -49,11 +37,12 @@ export const bookingAgent = new Agent(components.agent, {
       }),
       handler: async (ctx, args): Promise<Array<{ time: string; available: boolean }>> => {
         // Query for available slots
-        return await ctx.runQuery(internal.scheduling.getAvailableTimeSlots, {
+        const availableSlots = await ctx.runQuery(internal.scheduling.getAvailableTimeSlots, {
           tenantId: args.tenantId as Id<"tenants">,
           date: args.date,
           service: args.service,
-        });
+        })
+        return availableSlots
       },
     }),
 
@@ -104,10 +93,11 @@ export const bookingAgent = new Agent(components.agent, {
         searchTerm: z.string().describe("Name, email, or phone to search for"),
       }),
       handler: async (ctx, args): Promise<Array<{ id: string; name: string; email?: string; phone?: string }>> => {
-        return await ctx.runQuery(internal.scheduling.findClientBySearch, {
-                  tenantId: args.tenantId as Id<"tenants">,
-                  search: args.searchTerm,
-                });
+        const clients = await ctx.runQuery(internal.scheduling.findClientBySearch, {
+          tenantId: args.tenantId as Id<"tenants">,
+          search: args.searchTerm,
+        })
+        return clients
       },
     }),
 
@@ -167,12 +157,13 @@ export const bookingAgent = new Agent(components.agent, {
           notes?: string
         }>
       > => {
-        return await ctx.runQuery(internal.scheduling.getPastBookings, {
-                  tenantId: args.tenantId as Id<"tenants">,
-                  clientId: args.clientId as Id<"clients"> | undefined,
-                  service: args.service,
-                  limit: args.limit,
-                });
+        const pastBookings = await ctx.runQuery(internal.scheduling.getPastBookings, {
+          tenantId: args.tenantId as Id<"tenants">,
+          clientId: args.clientId as Id<"clients"> | undefined,
+          service: args.service,
+          limit: args.limit,
+        })
+        return pastBookings
       },
     }),
 
@@ -192,10 +183,11 @@ export const bookingAgent = new Agent(components.agent, {
         duration: number
         price: number
       }> => {
-        return await ctx.runQuery(internal.scheduling.getServiceDetails, {
-                  tenantId: args.tenantId as Id<"tenants">,
-                  service: args.service,
-                });
+        const serviceDetails = await ctx.runQuery(internal.scheduling.getServiceDetails, {
+          tenantId: args.tenantId as Id<"tenants">,
+          service: args.service,
+        })
+        return serviceDetails
       },
     }),
   },
@@ -303,10 +295,12 @@ export const continueThread = mutation({
       throw new Error("Thread not found or does not belong to this tenant")
     }
 
-    return await bookingAgent.continueThread(ctx, {
-          threadId: args.threadId,
-          userId: args.userId,
-        });
+    const result = await bookingAgent.continueThread(ctx, {
+      threadId: args.threadId,
+      userId: args.userId,
+    })
+
+    return result
   },
 })
 
@@ -326,9 +320,11 @@ export const generateText = action({
     })
 
     // Generate text with streaming
-    return await thread.generateText({
-          prompt: args.prompt,
-        });
+    const result = await thread.generateText({
+      prompt: args.prompt,
+    })
+
+    return result
   },
 })
 
@@ -348,9 +344,11 @@ export const streamText = action({
     })
 
     // Generate text with streaming
-    return await thread.streamText({
-          prompt: args.prompt,
-        });
+    const stream = await thread.streamText({
+      prompt: args.prompt,
+    })
+
+    return stream
   },
 })
 
@@ -370,18 +368,20 @@ export const generateObject = action({
     })
 
     // Generate a booking object
-    return await thread.generateObject({
-          prompt: args.prompt,
-          schema: z.object({
-            service: z.string().describe("The auto-detailing service requested"),
-            date: z.string().describe("The requested date in YYYY-MM-DD format"),
-            time: z.string().describe("The requested time in HH:MM format"),
-            clientName: z.string().describe("The client's full name"),
-            clientEmail: z.string().optional().describe("The client's email address"),
-            clientPhone: z.string().optional().describe("The client's phone number"),
-            notes: z.string().optional().describe("Any additional notes about the booking"),
-          }),
-        });
+    const result = await thread.generateObject({
+      prompt: args.prompt,
+      schema: z.object({
+        service: z.string().describe("The auto-detailing service requested"),
+        date: z.string().describe("The requested date in YYYY-MM-DD format"),
+        time: z.string().describe("The requested time in HH:MM format"),
+        clientName: z.string().describe("The client's full name"),
+        clientEmail: z.string().optional().describe("The client's email address"),
+        clientPhone: z.string().optional().describe("The client's phone number"),
+        notes: z.string().optional().describe("Any additional notes about the booking"),
+      }),
+    })
+
+    return result
   },
 })
 
@@ -401,18 +401,20 @@ export const streamObject = action({
     })
 
     // Stream a booking object
-    return await thread.streamObject({
-          prompt: args.prompt,
-          schema: z.object({
-            service: z.string().describe("The auto-detailing service requested"),
-            date: z.string().describe("The requested date in YYYY-MM-DD format"),
-            time: z.string().describe("The requested time in HH:MM format"),
-            clientName: z.string().describe("The client's full name"),
-            clientEmail: z.string().optional().describe("The client's email address"),
-            clientPhone: z.string().optional().describe("The client's phone number"),
-            notes: z.string().optional().describe("Any additional notes about the booking"),
-          }),
-        });
+    const stream = await thread.streamObject({
+      prompt: args.prompt,
+      schema: z.object({
+        service: z.string().describe("The auto-detailing service requested"),
+        date: z.string().describe("The requested date in YYYY-MM-DD format"),
+        time: z.string().describe("The requested time in HH:MM format"),
+        clientName: z.string().describe("The client's full name"),
+        clientEmail: z.string().optional().describe("The client's email address"),
+        clientPhone: z.string().optional().describe("The client's phone number"),
+        notes: z.string().optional().describe("Any additional notes about the booking"),
+      }),
+    })
+
+    return stream
   },
 })
 
@@ -428,7 +430,9 @@ export const listThreads = query({
 
     const filteredQuery = args.userId ? query.filter((q) => q.eq(q.field("userId"), args.userId)) : query
 
-    return await filteredQuery.order("desc").take(args.limit || 10);
+    const threads = await filteredQuery.order("desc").take(args.limit || 10)
+
+    return threads
   },
 })
 
@@ -477,15 +481,9 @@ export const updateThread = mutation({
       updatedAt: Date.now(),
     }
 
-    if (args.title !== undefined) {
-      updates.title = args.title
-    }
-    if (args.status !== undefined) {
-      updates.status = args.status
-    }
-    if (args.summary !== undefined) {
-      updates.summary = args.summary
-    }
+    if (args.title !== undefined) updates.title = args.title
+    if (args.status !== undefined) updates.status = args.status
+    if (args.summary !== undefined) updates.summary = args.summary
 
     await ctx.db.patch(thread._id, updates)
 
@@ -513,11 +511,10 @@ export const searchMessages = action({
     const threadIds = threads.map((thread) => thread.threadId)
 
     // Search messages across all these threads
-    const messages: any[] = []
-    for (const threadId of threadIds as string[]) {
+    const messages = []
+    for (const threadId of threadIds) {
       try {
-        // NOTE: Fix type error by using runAction instead of runQuery, since searchMessages is an action
-        const threadMessages: any[] = await ctx.runAction(components.agent.messages.searchMessages, {
+        const threadMessages = await ctx.runQuery(components.agent.messages.searchMessages, {
           threadId,
           query: args.query,
           textSearch: true,
@@ -526,10 +523,10 @@ export const searchMessages = action({
         })
 
         messages.push(
-          ...threadMessages.map((msg: any) => ({
-            ...(msg ?? {}),
+          ...threadMessages.map((msg) => ({
+            ...msg,
             threadId,
-            threadTitle: threads.find((t: { threadId: string }) => t.threadId === threadId)?.title || "Unknown Thread",
+            threadTitle: threads.find((t) => t.threadId === threadId)?.title || "Unknown Thread",
           })),
         )
       } catch (error) {
@@ -551,6 +548,7 @@ export const searchMessages = action({
 
 // Export actions for use in workflows
 export const createThreadMutation = bookingAgent.createThreadMutation()
+export const continueThreadMutation = bookingAgent.continueThreadMutation()
 export const generateTextAction = bookingAgent.asTextAction({
   maxSteps: 10,
 })

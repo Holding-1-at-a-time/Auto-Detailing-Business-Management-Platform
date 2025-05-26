@@ -1,84 +1,112 @@
 "use client"
 
-import { useBookings } from "@/hooks/useBookings"
-import { useClients } from "@/hooks/useClients"
-import { BookingCard } from "./booking-card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { useState } from "react"
-import { Search, Plus } from "lucide-react"
-import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { Eye } from "lucide-react"
+
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
+import { ApiError } from "@/components/common/api-error"
 import { useTenant } from "@/hooks/useTenant"
+import { useBookings } from "@/hooks/useBookings"
+import { formatBookingDate, formatBookingTime } from "@/lib/utils/booking-utils"
 
 interface BookingListProps {
   status?: "scheduled" | "completed" | "cancelled"
+  clientId?: string
+  limit?: number
 }
 
-export function BookingList({ status }: BookingListProps) {
+export function BookingList({ status, clientId, limit }: BookingListProps) {
+  const router = useRouter()
   const { tenantId } = useTenant()
-  const [searchQuery, setSearchQuery] = useState("")
-  const { bookings, isLoading: isLoadingBookings } = useBookings({ status })
-  const { clients, isLoading: isLoadingClients } = useClients()
+  const [error, setError] = useState<string | null>(null)
 
-  // Get client names for bookings
-  const getClientName = (clientId: string) => {
-    const client = clients?.find((c) => c.id === clientId)
-    return client?.name || "Unknown Client"
-  }
-
-  // Filter bookings by search query
-  const filteredBookings = bookings?.filter((booking) => {
-    const clientName = getClientName(booking.clientId)
-    const searchLower = searchQuery.toLowerCase()
-
-    return booking.service.toLowerCase().includes(searchLower) || clientName.toLowerCase().includes(searchLower)
+  const { bookings, isLoading } = useBookings({
+    status,
+    clientId,
+    limit,
   })
 
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row justify-between gap-4">
-        <div className="relative w-full sm:w-64">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search bookings..."
-            className="pl-8"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-        <Link href={`/${tenantId}/bookings/new`}>
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            New Booking
-          </Button>
-        </Link>
-      </div>
+  // Handle view booking details
+  const handleViewBooking = (bookingId: string) => {
+    router.push(`/${tenantId}/bookings/${bookingId}`)
+  }
 
-      {isLoadingBookings || isLoadingClients ? (
-        <div className="space-y-4">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-32 rounded-lg border animate-pulse bg-muted"></div>
-          ))}
-        </div>
-      ) : filteredBookings && filteredBookings.length > 0 ? (
-        <div className="space-y-4">
-          {filteredBookings.map((booking) => (
-            <Link key={booking.id} href={`/${tenantId}/bookings/${booking.id}`}>
-              <BookingCard booking={booking} clientName={getClientName(booking.clientId)} />
-            </Link>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">No bookings found</p>
-          <Link href={`/${tenantId}/bookings/new`}>
-            <Button variant="outline" className="mt-4">
-              Create your first booking
+  // Get status badge color
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "scheduled":
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
+      case "completed":
+        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+      case "cancelled":
+        return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
+      default:
+        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300"
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Skeleton key={i} className="h-48 w-full" />
+        ))}
+      </div>
+    )
+  }
+
+  if (error) {
+    return <ApiError title="Error loading bookings" error={error} reset={() => setError(null)} />
+  }
+
+  if (!bookings || bookings.length === 0) {
+    return (
+      <Card>
+        <CardContent className="flex flex-col items-center justify-center py-10">
+          <p className="text-center text-muted-foreground">No bookings found</p>
+          <Button variant="outline" className="mt-4" onClick={() => router.push(`/${tenantId}/bookings/new`)}>
+            Create a new booking
+          </Button>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      {bookings.map((booking) => (
+        <Card key={booking.id} className="overflow-hidden">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg">{booking.service}</CardTitle>
+              <Badge className={getStatusColor(booking.status)}>
+                {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+              </Badge>
+            </div>
+            <CardDescription>
+              {formatBookingDate(booking.dateTime)} at {formatBookingTime(booking.dateTime)}
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent className="pb-2">
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Client</p>
+              <p className="text-sm">{booking.client?.name || "Unknown Client"}</p>
+            </div>
+          </CardContent>
+
+          <CardFooter>
+            <Button variant="outline" size="sm" className="w-full" onClick={() => handleViewBooking(booking.id)}>
+              <Eye className="mr-2 h-4 w-4" />
+              View Details
             </Button>
-          </Link>
-        </div>
-      )}
+          </CardFooter>
+        </Card>
+      ))}
     </div>
   )
 }
