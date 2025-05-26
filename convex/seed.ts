@@ -1,308 +1,287 @@
-import { mutation, query } from "./_generated/server"
-import type { Id } from "./_generated/dataModel"
+// Helper to generate random dates within a range
+const randomDate = (start: Date, end: Date): number => {
+  return start.getTime() + Math.random() * (end.getTime() - start.getTime())
+}
 
-// Check if we need to seed data
-export const needsSeeding = query({
-  handler: async (ctx) => {
-    const tenants = await ctx.db.query("tenants").collect()
-    return tenants.length === 0
+// Helper to pick a random item from an array
+const randomItem = <T>(items: T[]): T => {
+  return items[Math.floor(Math.random() * items.length)];
+};
+
+// Auto detailing services with realistic names and prices
+const autoDetailingServices = [
+  "Basic Wash & Vacuum ($49.99)",
+  "Full Interior Detail ($149.99)",
+  "Exterior Detail ($129.99)",
+  "Complete Detail Package ($249.99)",
+  "Paint Correction ($299.99)",
+  "Ceramic Coating Application ($599.99)",
+  "Headlight Restoration ($79.99)",
+  "Engine Bay Cleaning ($89.99)",
+  "Leather Treatment ($69.99)",
+  "Pet Hair Removal ($59.99)",
+  "Odor Elimination ($79.99)",
+  "Wheel & Tire Detail ($49.99)",
+];
+
+// Realistic client names
+const clientFirstNames = [
+  "James", "Robert", "John", "Michael", "David", "William", "Richard", "Joseph", "Thomas", "Charles",
+  "Mary", "Patricia", "Jennifer", "Linda", "Elizabeth", "Barbara", "Susan", "Jessica", "Sarah", "Karen",
+  "Christopher", "Daniel", "Matthew", "Anthony", "Mark", "Donald", "Steven", "Paul", "Andrew", "Joshua",
+  "Michelle", "Amanda", "Stephanie", "Melissa", "Rebecca", "Laura", "Sharon", "Cynthia", "Kathleen", "Amy"
+];
+
+const clientLastNames = [
+  "Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez",
+  "Hernandez", "Lopez", "Gonzalez", "Wilson", "Anderson", "Thomas", "Taylor", "Moore", "Jackson", "Martin",
+  "Lee", "Perez", "Thompson", "White", "Harris", "Sanchez", "Clark", "Ramirez", "Lewis", "Robinson",
+  "Walker", "Young", "Allen", "King", "Wright", "Scott", "Torres", "Nguyen", "Hill", "Flores"
+];
+
+// Generate a random phone number
+const generatePhoneNumber = (): string => {
+  const areaCode = Math.floor(Math.random() * 800) + 200;
+  const prefix = Math.floor(Math.random() * 800) + 200;
+  const lineNumber = Math.floor(Math.random() * 9000) + 1000;
+  return `(${areaCode}) ${prefix}-${lineNumber}`;
+};
+
+// Generate a random email based on name
+const generateEmail = (firstName: string, lastName: string): string => {
+  const domains = ["gmail.com", "yahoo.com", "outlook.com", "icloud.com", "hotmail.com", "aol.com"];
+  const randomDomain = randomItem(domains);
+  const randomNum = Math.floor(Math.random() * 100);
+  
+  // Different email patterns
+  const patterns = [
+    `${firstName.toLowerCase()}.${lastName.toLowerCase()}@${randomDomain}`,
+    `${firstName.toLowerCase()}${lastName.toLowerCase()}@${randomDomain}`,
+    `${firstName.toLowerCase()}${randomNum}@${randomDomain}`,
+    `${firstName.toLowerCase()[0]}${lastName.toLowerCase()}@${randomDomain}`,
+    `${lastName.toLowerCase()}.${firstName.toLowerCase()}@${randomDomain}`
+  ];
+  
+  return randomItem(patterns);
+};
+
+// Generate random notes for clients
+const generateClientNotes = (): string | undefined => {
+  const notes = [
+    "Prefers weekend appointments",
+    "Has a large SUV",
+    "Allergic to certain cleaning products",
+    "Prefers text message reminders",
+    "Regular customer, offers good tips",
+    "Has a classic car collection",
+    "Needs pet hair removal regularly",
+    "Prefers early morning appointments",
+    "Has a Tesla with specific care requirements",
+    "Referred by another client",
+    undefined, // Sometimes no notes
+  ];
+  
+  return randomItem(notes);
+};
+
+// Generate random notes for bookings
+const generateBookingNotes = (): string | undefined => {
+  const notes = [
+    "Customer requested extra attention to dashboard",
+    "Vehicle has mud stains on carpets",
+    "Bring extra microfiber towels",
+    "Customer will be 10 minutes late",
+    "Dog hair in back seat",
+    "New car, first detail",
+    "Coffee stains on passenger seat",
+    "Customer requested fragrance-free products",
+    "Scratch on driver's door needs attention",
+    "Customer will wait during service",
+    undefined, // Sometimes no notes
+  ];
+  
+  return randomItem(notes);
+};
+
+// Main seed function
+export default internalMutation({
+  args: {
+    force: v.optional(v.boolean()),
   },
-})
-
-// Main seeding function
-export const seedDatabase = mutation({
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
     // Check if we already have data
-    const existingTenants = await ctx.db.query("tenants").collect()
-    if (existingTenants.length > 0) {
-      return { success: false, message: "Database already has data" }
+    const existingTenants = await ctx.db.query("tenants").collect();
+    if (existingTenants.length > 0 && !args.force) {
+      return {
+        message: "Database already has data. Use force: true to reseed.",
+        tenantsCount: existingTenants.length,
+      };
     }
 
-    // Create tenants
-    const tenantIds = await seedTenants(ctx)
+    // If force is true, clear existing data
+    if (args.force) {
+      // Get all tables that need to be cleared
+      const tables = ["tenants", "users", "tenantSettings", "clients", "bookings", "notifications", "googleCalendarTokens"];
+      
+      for (const table of tables) {
+        const documents = await ctx.db.query(table as any).collect();
+        for (const doc of documents) {
+          await ctx.db.delete(doc._id);
+        }
+      }
+    }
 
-    // Create users and link to tenants
-    const userIds = await seedUsers(ctx, tenantIds)
+    const now = Date.now();
+    const tenantData = [
+      {
+        name: "Pristine Auto Detailing",
+        timezone: "America/New_York",
+        logoUrl: "/logo-pristine.png",
+      },
+      {
+        name: "Sparkle & Shine Car Care",
+        timezone: "America/Los_Angeles",
+        logoUrl: "/logo-sparkle.png",
+      },
+      {
+        name: "Elite Mobile Detailing",
+        timezone: "America/Chicago",
+        logoUrl: "/logo-elite.png",
+      }
+    ];
 
-    // Create clients for each tenant
-    const clientIds = await seedClients(ctx, tenantIds)
+    const tenantIds: Id<"tenants">[] = [];
+    const userIds: Record<string, Id<"users">> = {};
 
-    // Create bookings for each tenant and client
-    const bookingIds = await seedBookings(ctx, tenantIds, clientIds)
-
-    // Create notifications
-    await seedNotifications(ctx, tenantIds, bookingIds)
+    // Create tenants and users
+    for (const tenant of tenantData) {
+      // Create tenant
+      const tenantId = await ctx.db.insert("tenants", {
+        name: tenant.name,
+        timezone: tenant.timezone,
+        logoUrl: tenant.logoUrl,
+        createdAt: now,
+        updatedAt: now,
+      });
+      
+      tenantIds.push(tenantId);
+      
+      // Create tenant settings
+      await ctx.db.insert("tenantSettings", {
+        tenantId,
+        businessName: tenant.name,
+        timezone: tenant.timezone,
+        logoUrl: tenant.logoUrl,
+        calendarConnected: false,
+        updatedAt: now,
+      });
+      
+      // Create owner user
+      const ownerEmail = `owner@${tenant.name.toLowerCase().replace(/\s+/g, '')}.com`;
+      const userId = `user_${Math.random().toString(36).substring(2, 15)}`;
+      
+      const user = await ctx.db.insert("users", {
+        userId,
+        email: ownerEmail,
+        name: `Owner of ${tenant.name}`,
+        tenants: [tenantId],
+        createdAt: now,
+        updatedAt: now,
+      });
+      
+      userIds[tenant.name] = user;
+      
+      // Create clients for this tenant
+      const clientIds: Id<"clients">[] = [];
+      const clientCount = Math.floor(Math.random() * 15) + 10; // 10-25 clients per tenant
+      
+      for (let i = 0; i < clientCount; i++) {
+        const firstName = randomItem(clientFirstNames);
+        const lastName = randomItem(clientLastNames);
+        const fullName = `${firstName} ${lastName}`;
+        const email = generateEmail(firstName, lastName);
+        const phone = generatePhoneNumber();
+        const notes = generateClientNotes();
+        
+        const clientId = await ctx.db.insert("clients", {
+          tenantId,
+          name: fullName,
+          email,
+          phone,
+          notes,
+          isDeleted: Math.random() < 0.05, // 5% chance of being deleted
+          createdAt: now - Math.floor(Math.random() * 30 * 24 * 60 * 60 * 1000), // Created within last 30 days
+          updatedAt: now,
+        });
+        
+        clientIds.push(clientId);
+      }
+      
+      // Create bookings for this tenant
+      const today = new Date();
+      const oneMonthAgo = new Date();
+      oneMonthAgo.setMonth(today.getMonth() - 1);
+      
+      const twoMonthsFromNow = new Date();
+      twoMonthsFromNow.setMonth(today.getMonth() + 2);
+      
+      const bookingCount = Math.floor(Math.random() * 40) + 20; // 20-60 bookings per tenant
+      
+      for (let i = 0; i < bookingCount; i++) {
+        const clientId = randomItem(clientIds);
+        const service = randomItem(autoDetailingServices);
+        const dateTime = randomDate(oneMonthAgo, twoMonthsFromNow);
+        const notes = generateBookingNotes();
+        
+        // Determine status based on date
+        let status = "scheduled";
+        if (dateTime < now) {
+          status = Math.random() < 0.9 ? "completed" : "cancelled"; // 90% completed, 10% cancelled for past bookings
+        }
+        
+        const bookingId = await ctx.db.insert("bookings", {
+          tenantId,
+          clientId,
+          dateTime,
+          service,
+          status,
+          notes,
+          createdAt: Math.min(dateTime - 86400000 * Math.floor(Math.random() * 14), now), // Created 0-14 days before appointment
+          updatedAt: now,
+        });
+        
+        // Create notifications for some bookings
+        if (Math.random() < 0.3) { // 30% chance of having a notification
+          await ctx.db.insert("notifications", {
+            tenantId,
+            type: Math.random() < 0.5 ? "booking_created" : "booking_reminder",
+            resourceId: bookingId,
+            message: Math.random() < 0.5 
+              ? `New booking created for ${service}` 
+              : `Reminder: Upcoming appointment for ${service}`,
+            isRead: Math.random() < 0.7, // 70% chance of being read
+            createdAt: now - Math.floor(Math.random() * 7 * 24 * 60 * 60 * 1000), // Created within last 7 days
+          });
+        }
+      }
+    }
 
     return {
-      success: true,
-      message: "Database seeded successfully",
-      stats: {
-        tenants: tenantIds.length,
-        users: userIds.length,
-        clients: clientIds.length,
-        bookings: bookingIds.length,
-      },
-    }
+      message: "Database seeded successfully!",
+      tenantsCreated: tenantIds.length,
+      tenantIds,
+    };
   },
-})
+});
 
-// Helper function to seed tenants
-async function seedTenants(ctx: any) {
-  const now = Date.now()
-  const tenantData = [
-    {
-      name: "premium-auto-detailing",
-      timezone: "America/New_York",
-      logoUrl: "/logo-premium.png",
-      createdAt: now,
-      updatedAt: now,
-    },
-    {
-      name: "sparkle-shine-detailing",
-      timezone: "America/Chicago",
-      logoUrl: "/logo-sparkle.png",
-      createdAt: now,
-      updatedAt: now,
-    },
-    {
-      name: "elite-car-care",
-      timezone: "America/Los_Angeles",
-      logoUrl: "/logo-elite.png",
-      createdAt: now,
-      updatedAt: now,
-    },
-  ]
-
-  const tenantIds: Id<"tenants">[] = []
-
-  for (const tenant of tenantData) {
-    const tenantId = await ctx.db.insert("tenants", tenant)
-    tenantIds.push(tenantId)
-
-    // Create tenant settings
-    await ctx.db.insert("tenantSettings", {
-      tenantId,
-      businessName: formatBusinessName(tenant.name),
-      timezone: tenant.timezone,
-      logoUrl: tenant.logoUrl,
-      calendarConnected: false,
-      updatedAt: now,
-    })
-  }
-
-  return tenantIds
-}
-
-// Helper function to seed users
-async function seedUsers(ctx: any, tenantIds: Id<"tenants">[]) {
-  const now = Date.now()
-  const userData = [
-    {
-      userId: "user_1",
-      email: "admin@premiumautodetailing.com",
-      name: "Admin User",
-      tenants: [tenantIds[0].toString()],
-      createdAt: now,
-      updatedAt: now,
-    },
-    {
-      userId: "user_2",
-      email: "manager@sparkleshine.com",
-      name: "Manager User",
-      tenants: [tenantIds[1].toString()],
-      createdAt: now,
-      updatedAt: now,
-    },
-    {
-      userId: "user_3",
-      email: "owner@elitecarcare.com",
-      name: "Owner User",
-      tenants: [tenantIds[2].toString()],
-      createdAt: now,
-      updatedAt: now,
-    },
-    {
-      userId: "user_4",
-      email: "multi@detailing.com",
-      name: "Multi-Tenant User",
-      tenants: tenantIds.map((id) => id.toString()),
-      createdAt: now,
-      updatedAt: now,
-    },
-  ]
-
-  const userIds: Id<"users">[] = []
-
-  for (const user of userData) {
-    const userId = await ctx.db.insert("users", user)
-    userIds.push(userId)
-  }
-
-  return userIds
-}
-
-// Helper function to seed clients
-async function seedClients(ctx: any, tenantIds: Id<"tenants">[]) {
-  const now = Date.now()
-  const clientIds: Id<"clients">[] = []
-
-  // Create 5-10 clients for each tenant
-  for (const tenantId of tenantIds) {
-    const numClients = 5 + Math.floor(Math.random() * 6) // 5-10 clients
-
-    for (let i = 0; i < numClients; i++) {
-      const clientId = await ctx.db.insert("clients", {
-        tenantId,
-        name: `Client ${i + 1}`,
-        email: `client${i + 1}@example.com`,
-        phone: `555-${100 + i}-${1000 + i}`,
-        notes: i % 3 === 0 ? `VIP client with ${i + 1} vehicles` : undefined,
-        isDeleted: false,
-        createdAt: now - i * 86400000, // Stagger creation dates
-        updatedAt: now,
-      })
-
-      clientIds.push(clientId)
-    }
-  }
-
-  return clientIds
-}
-
-// Helper function to seed bookings
-async function seedBookings(ctx: any, tenantIds: Id<"tenants">[], clientIds: Id<"clients">[]) {
-  const now = Date.now()
-  const bookingIds: Id<"bookings">[] = []
-
-  // Group clients by tenant
-  const clientsByTenant: Record<string, Id<"clients">[]> = {}
-
-  for (const clientId of clientIds) {
-    const client = await ctx.db.get(clientId)
-    const tenantIdStr = client.tenantId.toString()
-
-    if (!clientsByTenant[tenantIdStr]) {
-      clientsByTenant[tenantIdStr] = []
-    }
-
-    clientsByTenant[tenantIdStr].push(clientId)
-  }
-
-  // Create bookings for each tenant
-  for (const tenantId of tenantIds) {
-    const tenantClients = clientsByTenant[tenantId.toString()] || []
-    if (tenantClients.length === 0) continue
-
-    // Create past, current, and future bookings
-    const numBookings = 15 + Math.floor(Math.random() * 10) // 15-25 bookings
-
-    for (let i = 0; i < numBookings; i++) {
-      // Randomly select a client for this tenant
-      const clientIndex = Math.floor(Math.random() * tenantClients.length)
-      const clientId = tenantClients[clientIndex]
-
-      // Determine booking date (past, present, or future)
-      let bookingDate: number
-      let status: string
-
-      if (i < numBookings * 0.4) {
-        // 40% past bookings
-        bookingDate = now - (1 + Math.floor(Math.random() * 30)) * 86400000
-        status = Math.random() > 0.1 ? "completed" : "cancelled"
-      } else if (i < numBookings * 0.6) {
-        // 20% today's bookings
-        bookingDate = now + Math.floor(Math.random() * 86400000)
-        status = Math.random() > 0.7 ? "completed" : "scheduled"
-      } else {
-        // 40% future bookings
-        bookingDate = now + (1 + Math.floor(Math.random() * 30)) * 86400000
-        status = "scheduled"
-      }
-
-      // Select a service
-      const services = [
-        "Basic Wash",
-        "Full Detail",
-        "Interior Detail",
-        "Exterior Detail",
-        "Premium Package",
-        "Ceramic Coating",
-        "Paint Correction",
-        "Headlight Restoration",
-      ]
-      const service = services[Math.floor(Math.random() * services.length)]
-
-      // Create the booking
-      const bookingId = await ctx.db.insert("bookings", {
-        tenantId,
-        clientId,
-        dateTime: bookingDate,
-        service,
-        status,
-        notes: Math.random() > 0.7 ? `Special request for ${service}` : undefined,
-        createdAt: now - i * 3600000, // Stagger creation times
-        updatedAt: now,
-      })
-
-      bookingIds.push(bookingId)
-    }
-  }
-
-  return bookingIds
-}
-
-// Helper function to seed notifications
-async function seedNotifications(ctx: any, tenantIds: Id<"tenants">[], bookingIds: Id<"bookings">[]) {
-  const now = Date.now()
-
-  // Create notifications for recent and upcoming bookings
-  for (const bookingId of bookingIds) {
-    const booking = await ctx.db.get(bookingId)
-
-    // Only create notifications for recent or upcoming bookings
-    if (booking.dateTime < now - 7 * 86400000) continue // Skip if more than a week old
-
-    const notificationTypes = ["booking_created", "booking_updated", "booking_reminder", "client_message"]
-
-    // Create 1-3 notifications per booking
-    const numNotifications = 1 + Math.floor(Math.random() * 3)
-
-    for (let i = 0; i < numNotifications; i++) {
-      const type = notificationTypes[Math.floor(Math.random() * notificationTypes.length)]
-      let message = ""
-
-      switch (type) {
-        case "booking_created":
-          message = `New booking created for ${booking.service}`
-          break
-        case "booking_updated":
-          message = `Booking for ${booking.service} has been updated`
-          break
-        case "booking_reminder":
-          message = `Reminder: Upcoming booking for ${booking.service}`
-          break
-        case "client_message":
-          message = `Client has sent a message about their ${booking.service} appointment`
-          break
-      }
-
-      await ctx.db.insert("notifications", {
-        tenantId: booking.tenantId,
-        type,
-        resourceId: bookingId.toString(),
-        message,
-        isRead: Math.random() > 0.6, // 40% unread
-        createdAt: now - Math.floor(Math.random() * 86400000), // Within the last day
-        updatedAt: now,
-      })
-    }
-  }
-}
-
-// Utility function to format business name from slug
-function formatBusinessName(slug: string): string {
-  return slug
-    .split("-")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ")
-}
+// Action to seed the database and handle any external API calls if needed
+export const seedWithExternalData = action({
+  args: {
+    force: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    // Call the internal mutation to seed the database
+    const result = await ctx.runMutation(internal => internal.default({ force: args.force }));
+    return result;
+  },
+});
