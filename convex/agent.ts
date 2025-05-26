@@ -552,7 +552,6 @@ export const searchMessages = action({
 
 // Export actions for use in workflows
 export const createThreadMutation = bookingAgent.createThreadMutation()
-export const continueThreadMutation = bookingAgent.continueThreadMutation()
 export const generateTextAction = bookingAgent.asTextAction({
     maxSteps: 10,
   })
