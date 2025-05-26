@@ -1,48 +1,44 @@
 /**
- * Script to seed the Convex database with sample data
- *
- * Usage:
- * 1. Make sure your Convex backend is running: `npx convex dev`
- * 2. Run this script: `npx tsx scripts/seed-database.ts`
+ * Script to seed the database with sample data
+ * Run with: npx tsx scripts/seed-database.ts
  */
 
 import { ConvexHttpClient } from "convex/browser"
 import { api } from "../convex/_generated/api"
 
-const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL
+async function main() {
+  // Get the Convex URL from environment variable
+  const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL
+  if (!convexUrl) {
+    console.error("❌ NEXT_PUBLIC_CONVEX_URL environment variable is not set")
+    process.exit(1)
+  }
 
-if (!CONVEX_URL) {
-  console.error("Error: NEXT_PUBLIC_CONVEX_URL environment variable is not set")
-  console.error("Please make sure you have a .env.local file with your Convex URL")
-  process.exit(1)
-}
+  // Create a Convex client
+  const client = new ConvexHttpClient(convexUrl)
 
-async function seedDatabase() {
-  const client = new ConvexHttpClient(CONVEX_URL)
-
-  console.log("🌱 Starting database seed...")
-  console.log(`📡 Connecting to Convex at: ${CONVEX_URL}`)
+  console.log("🚀 Starting database seed process...")
+  console.log(`📍 Convex URL: ${convexUrl}`)
 
   try {
-    const result = await client.action(api.seed.seedDatabase)
+    // Run the seed action
+    const result = await client.action(api.seed.seedDatabase, {})
 
-    console.log("✅ Database seeded successfully!")
-    console.log("📊 Summary:")
-    console.log(`   - Tenants: ${result.summary.tenants}`)
-    console.log(`   - Users: ${result.summary.users}`)
-    console.log(`   - Clients: ${result.summary.clients}`)
-    console.log(`   - Bookings: ${result.summary.bookings}`)
-    console.log(`   - Notifications: ${result.summary.notifications}`)
-
-    console.log("\n🎉 You can now log in with:")
-    console.log("   - owner@premiumautospa.com")
-    console.log("   - admin@elitedetailworks.com")
-    console.log("   - tech@premiumautospa.com")
+    if (result.success) {
+      console.log("\n✅ Database seeded successfully!")
+      console.log("📊 Created:")
+      console.log(`   - ${result.summary.tenants} tenants`)
+      console.log(`   - ${result.summary.clients} clients`)
+      console.log(`   - ${result.summary.bookings} bookings`)
+      console.log(`   - ${result.summary.notifications} notifications`)
+    } else {
+      console.log("\n⚠️  Seeding skipped:", result.message)
+    }
   } catch (error) {
-    console.error("❌ Error seeding database:", error)
+    console.error("\n❌ Error seeding database:", error)
     process.exit(1)
   }
 }
 
-// Run the seed function
-seedDatabase()
+// Run the script
+main().catch(console.error)

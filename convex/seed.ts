@@ -1,334 +1,335 @@
 import { action } from "./_generated/server"
 import { api } from "./_generated/api"
 
+// Sample data for seeding
+const SAMPLE_TENANTS = [
+  {
+    name: "Elite Auto Spa",
+    timezone: "America/New_York",
+    businessName: "Elite Auto Spa & Detailing",
+    userId: "seed_user_1",
+    userEmail: "owner@eliteautospa.com",
+  },
+  {
+    name: "Crystal Clear Detailing",
+    timezone: "America/Los_Angeles",
+    businessName: "Crystal Clear Auto Detailing",
+    userId: "seed_user_2",
+    userEmail: "manager@crystalclear.com",
+  },
+]
+
+const SAMPLE_CLIENTS = [
+  // Elite Auto Spa clients
+  {
+    name: "John Smith",
+    email: "john.smith@email.com",
+    phone: "(555) 123-4567",
+    notes: "Owns a 2022 Tesla Model 3. Prefers ceramic coating packages.",
+  },
+  {
+    name: "Sarah Johnson",
+    email: "sarah.j@email.com",
+    phone: "(555) 234-5678",
+    notes: "2021 BMW X5. Regular monthly detailing customer.",
+  },
+  {
+    name: "Michael Chen",
+    email: "m.chen@email.com",
+    phone: "(555) 345-6789",
+    notes: "Multiple vehicles: Porsche 911 and Range Rover. VIP customer.",
+  },
+  {
+    name: "Emily Davis",
+    email: "emily.davis@email.com",
+    phone: "(555) 456-7890",
+    notes: "2023 Mercedes-Benz C-Class. Prefers interior detailing.",
+  },
+  {
+    name: "Robert Wilson",
+    email: "r.wilson@email.com",
+    phone: "(555) 567-8901",
+    notes: "Classic car collector. Owns 1967 Mustang and 1969 Camaro.",
+  },
+  // Crystal Clear Detailing clients
+  {
+    name: "Lisa Anderson",
+    email: "lisa.a@email.com",
+    phone: "(555) 678-9012",
+    notes: "2022 Audi Q7. Family SUV, needs frequent interior cleaning.",
+  },
+  {
+    name: "David Martinez",
+    email: "d.martinez@email.com",
+    phone: "(555) 789-0123",
+    notes: "Fleet customer with 5 company vehicles.",
+  },
+  {
+    name: "Jennifer Taylor",
+    email: "jen.taylor@email.com",
+    phone: "(555) 890-1234",
+    notes: "2023 Lexus RX. Prefers eco-friendly products.",
+  },
+  {
+    name: "James Brown",
+    email: "james.b@email.com",
+    phone: "(555) 901-2345",
+    notes: "Motorcycle enthusiast. Harley Davidson and Indian.",
+  },
+  {
+    name: "Maria Garcia",
+    email: "maria.g@email.com",
+    phone: "(555) 012-3456",
+    notes: "2021 Honda CR-V. Budget-conscious, basic packages.",
+  },
+]
+
+const SERVICES = [
+  "Basic Wash & Wax",
+  "Premium Detail Package",
+  "Interior Deep Clean",
+  "Ceramic Coating Application",
+  "Paint Correction",
+  "Full Detail Package",
+  "Express Detail",
+  "Headlight Restoration",
+  "Engine Bay Cleaning",
+  "Leather Conditioning",
+]
+
+// Helper function to generate random past/future dates
+function generateRandomDate(daysFromNow: number, variance: number): number {
+  const date = new Date()
+  date.setDate(date.getDate() + daysFromNow + Math.floor(Math.random() * variance - variance / 2))
+  date.setHours(Math.floor(Math.random() * 8) + 9) // 9 AM to 5 PM
+  date.setMinutes(Math.random() > 0.5 ? 0 : 30) // On the hour or half hour
+  date.setSeconds(0)
+  date.setMilliseconds(0)
+  return date.getTime()
+}
+
+// Helper function to get random service
+function getRandomService(): string {
+  return SERVICES[Math.floor(Math.random() * SERVICES.length)]
+}
+
+// Helper function to generate booking notes
+function generateBookingNotes(): string | undefined {
+  const notes = [
+    "Customer requested extra attention to wheels",
+    "Use fragrance-free products (allergies)",
+    "Park in shaded area during service",
+    "Text when service is complete",
+    "Customer will wait in lobby",
+    "Second vehicle may be added to appointment",
+    "Birthday gift certificate redemption",
+    "Refer to previous service notes",
+    undefined, // Some bookings have no notes
+    undefined,
+  ]
+  return notes[Math.floor(Math.random() * notes.length)]
+}
+
 export const seedDatabase = action({
   args: {},
   handler: async (ctx) => {
-    console.log("Starting database seed...")
+    console.log("🌱 Starting database seed...")
 
     try {
-      // Create sample tenants
-      const tenant1Id = await ctx.runMutation(api.tenants.createTenant, {
-        name: "Premium Auto Spa",
-        timezone: "America/New_York",
-        logoUrl: "/placeholder.svg?height=100&width=100",
-        userId: "user_seed_1",
-        userEmail: "owner@premiumautospa.com",
+      // Check if data already exists
+      const existingTenants = await ctx.runQuery(api.tenants.getTenantByName, {
+        name: SAMPLE_TENANTS[0].name,
       })
 
-      const tenant2Id = await ctx.runMutation(api.tenants.createTenant, {
-        name: "Elite Detail Works",
-        timezone: "America/Los_Angeles",
-        logoUrl: "/placeholder.svg?height=100&width=100",
-        userId: "user_seed_2",
-        userEmail: "admin@elitedetailworks.com",
-      })
-
-      console.log("Created tenants:", { tenant1Id, tenant2Id })
-
-      // Create additional users for tenant 1
-      await ctx.runMutation(api.users.createUser, {
-        userId: "user_seed_3",
-        email: "tech@premiumautospa.com",
-        name: "John Technician",
-      })
-
-      await ctx.runMutation(api.users.addTenantToUser, {
-        userId: "user_seed_3",
-        tenantId: tenant1Id,
-      })
-
-      // Create clients for tenant 1
-      const clients1 = []
-      const clientData1 = [
-        {
-          name: "Sarah Johnson",
-          email: "sarah.johnson@email.com",
-          phone: "(555) 123-4567",
-          notes: "Prefers ceramic coating, owns a 2023 Tesla Model S",
-        },
-        {
-          name: "Michael Chen",
-          email: "m.chen@business.com",
-          phone: "(555) 234-5678",
-          notes: "Regular monthly detailing, fleet of 3 vehicles",
-        },
-        {
-          name: "Emily Rodriguez",
-          email: "emily.r@email.com",
-          phone: "(555) 345-6789",
-          notes: "Sensitive to strong chemicals, prefers eco-friendly products",
-        },
-        {
-          name: "David Thompson",
-          email: "david.t@email.com",
-          phone: "(555) 456-7890",
-          notes: "Owns classic cars, very particular about paint care",
-        },
-        {
-          name: "Lisa Anderson",
-          email: "lisa.anderson@email.com",
-          phone: "(555) 567-8901",
-          notes: "New customer, referred by Sarah Johnson",
-        },
-      ]
-
-      for (const client of clientData1) {
-        const clientId = await ctx.runMutation(api.clients.createClient, {
-          tenantId: tenant1Id,
-          ...client,
-        })
-        clients1.push(clientId)
+      if (existingTenants) {
+        console.log("⚠️  Database already seeded. Skipping...")
+        return { success: false, message: "Database already contains seed data" }
       }
 
-      console.log("Created clients for tenant 1:", clients1.length)
+      const createdTenants: any[] = []
+      const createdClients: any[] = []
+      const createdBookings: any[] = []
 
-      // Create clients for tenant 2
-      const clients2 = []
-      const clientData2 = [
-        {
-          name: "Robert Williams",
-          email: "r.williams@company.com",
-          phone: "(555) 678-9012",
-          notes: "Corporate account, multiple vehicles",
-        },
-        {
-          name: "Jennifer Martinez",
-          email: "j.martinez@email.com",
-          phone: "(555) 789-0123",
-          notes: "Prefers weekend appointments",
-        },
-        {
-          name: "Christopher Lee",
-          email: "chris.lee@email.com",
-          phone: "(555) 890-1234",
-          notes: "Owns a luxury SUV, wants paint protection",
-        },
-      ]
-
-      for (const client of clientData2) {
-        const clientId = await ctx.runMutation(api.clients.createClient, {
-          tenantId: tenant2Id,
-          ...client,
+      // Create tenants
+      console.log("Creating tenants...")
+      for (const tenantData of SAMPLE_TENANTS) {
+        const tenantId = await ctx.runMutation(api.tenants.createTenant, {
+          name: tenantData.name,
+          timezone: tenantData.timezone,
+          userId: tenantData.userId,
+          userEmail: tenantData.userEmail,
         })
-        clients2.push(clientId)
+
+        // Update tenant settings
+        await ctx.runMutation(api.tenants.updateTenantSettings, {
+          tenantId,
+          businessName: tenantData.businessName,
+          calendarConnected: false,
+        })
+
+        createdTenants.push({ id: tenantId, ...tenantData })
+        console.log(`✅ Created tenant: ${tenantData.name}`)
       }
 
-      console.log("Created clients for tenant 2:", clients2.length)
+      // Create clients for each tenant
+      console.log("\nCreating clients...")
+      for (let i = 0; i < createdTenants.length; i++) {
+        const tenant = createdTenants[i]
+        const clientsForTenant = SAMPLE_CLIENTS.slice(i * 5, (i + 1) * 5)
 
-      // Create bookings for tenant 1
-      const now = Date.now()
-      const oneDay = 24 * 60 * 60 * 1000
-      const oneHour = 60 * 60 * 1000
-
-      const bookingData1 = [
-        // Past bookings
-        {
-          clientId: clients1[0],
-          dateTime: now - 7 * oneDay,
-          service: "Full Detailing",
-          status: "completed",
-          notes: "Great service, customer very satisfied",
-        },
-        {
-          clientId: clients1[1],
-          dateTime: now - 3 * oneDay,
-          service: "Ceramic Coating",
-          status: "completed",
-          notes: "Applied 5-year ceramic coating package",
-        },
-        // Today's bookings
-        {
-          clientId: clients1[2],
-          dateTime: now + 2 * oneHour,
-          service: "Interior Detailing",
-          status: "scheduled",
-          notes: "Use hypoallergenic products",
-        },
-        {
-          clientId: clients1[3],
-          dateTime: now + 4 * oneHour,
-          service: "Paint Correction",
-          status: "scheduled",
-          notes: "1967 Mustang - be extra careful",
-        },
-        // Future bookings
-        {
-          clientId: clients1[4],
-          dateTime: now + 1 * oneDay + 3 * oneHour,
-          service: "Basic Wash",
-          status: "scheduled",
-          notes: "First time customer",
-        },
-        {
-          clientId: clients1[0],
-          dateTime: now + 3 * oneDay + 2 * oneHour,
-          service: "Exterior Detailing",
-          status: "scheduled",
-          notes: "Regular maintenance",
-        },
-        {
-          clientId: clients1[1],
-          dateTime: now + 7 * oneDay + 4 * oneHour,
-          service: "Full Detailing",
-          status: "scheduled",
-          notes: "Monthly appointment",
-        },
-        // Cancelled booking
-        {
-          clientId: clients1[2],
-          dateTime: now + 2 * oneDay,
-          service: "Basic Wash",
-          status: "cancelled",
-          notes: "Customer rescheduled",
-        },
-      ]
-
-      const bookings1 = []
-      for (const booking of bookingData1) {
-        const bookingId = await ctx.runMutation(api.bookings.createBooking, {
-          tenantId: tenant1Id,
-          clientId: booking.clientId,
-          dateTime: booking.dateTime,
-          service: booking.service,
-          notes: booking.notes,
-        })
-
-        if (booking.status !== "scheduled") {
-          await ctx.runMutation(api.bookings.updateBooking, {
-            tenantId: tenant1Id,
-            bookingId,
-            status: booking.status,
+        for (const clientData of clientsForTenant) {
+          const clientId = await ctx.runMutation(api.clients.createClient, {
+            tenantId: tenant.id,
+            name: clientData.name,
+            email: clientData.email,
+            phone: clientData.phone,
+            notes: clientData.notes,
           })
+
+          createdClients.push({
+            id: clientId,
+            tenantId: tenant.id,
+            ...clientData,
+          })
+          console.log(`✅ Created client: ${clientData.name} for ${tenant.name}`)
+        }
+      }
+
+      // Create bookings
+      console.log("\nCreating bookings...")
+      for (const client of createdClients) {
+        // Create 2-4 past bookings per client
+        const numPastBookings = Math.floor(Math.random() * 3) + 2
+        for (let i = 0; i < numPastBookings; i++) {
+          const dateTime = generateRandomDate(-30 - i * 15, 10) // Past 30-90 days
+          const bookingId = await ctx.runMutation(api.bookings.createBooking, {
+            tenantId: client.tenantId,
+            clientId: client.id,
+            dateTime,
+            service: getRandomService(),
+            notes: generateBookingNotes(),
+          })
+
+          // Mark most past bookings as completed
+          if (Math.random() > 0.1) {
+            await ctx.runMutation(api.bookings.updateBooking, {
+              tenantId: client.tenantId,
+              bookingId,
+              status: "completed",
+            })
+          }
+
+          createdBookings.push({ id: bookingId, clientName: client.name, status: "completed" })
         }
 
-        bookings1.push(bookingId)
+        // Create 0-2 upcoming bookings per client
+        const numUpcomingBookings = Math.floor(Math.random() * 3)
+        for (let i = 0; i < numUpcomingBookings; i++) {
+          const dateTime = generateRandomDate(7 + i * 7, 5) // Next 1-3 weeks
+          const bookingId = await ctx.runMutation(api.bookings.createBooking, {
+            tenantId: client.tenantId,
+            clientId: client.id,
+            dateTime,
+            service: getRandomService(),
+            notes: generateBookingNotes(),
+          })
+
+          createdBookings.push({ id: bookingId, clientName: client.name, status: "scheduled" })
+        }
       }
 
-      console.log("Created bookings for tenant 1:", bookings1.length)
+      console.log(`✅ Created ${createdBookings.length} bookings`)
 
-      // Create bookings for tenant 2
-      const bookingData2 = [
-        {
-          clientId: clients2[0],
-          dateTime: now + 1 * oneDay + 1 * oneHour,
-          service: "Full Detailing",
-          status: "scheduled",
-          notes: "Fleet vehicle #1",
-        },
-        {
-          clientId: clients2[1],
-          dateTime: now + 2 * oneDay + 3 * oneHour,
-          service: "Interior Detailing",
-          status: "scheduled",
-          notes: "Saturday appointment requested",
-        },
-        {
-          clientId: clients2[2],
-          dateTime: now + 4 * oneDay + 2 * oneHour,
-          service: "Ceramic Coating",
-          status: "scheduled",
-          notes: "New vehicle protection package",
-        },
-      ]
-
-      const bookings2 = []
-      for (const booking of bookingData2) {
-        const bookingId = await ctx.runMutation(api.bookings.createBooking, {
-          tenantId: tenant2Id,
-          clientId: booking.clientId,
-          dateTime: booking.dateTime,
-          service: booking.service,
-          notes: booking.notes,
-        })
-        bookings2.push(bookingId)
-      }
-
-      console.log("Created bookings for tenant 2:", bookings2.length)
-
-      // Create notifications for tenant 1
-      const notificationData1 = [
+      // Create some notifications for the first tenant
+      console.log("\nCreating notifications...")
+      const firstTenant = createdTenants[0]
+      const notifications = [
         {
           type: "booking_reminder",
-          resourceId: bookings1[2],
-          message: "Reminder: Interior Detailing appointment today at 2:00 PM",
-          isRead: false,
+          message: "Reminder: John Smith's appointment tomorrow at 10:00 AM",
+          resourceId: createdBookings[0].id,
         },
         {
-          type: "booking_created",
-          resourceId: bookings1[4],
-          message: "New booking created for Basic Wash tomorrow",
-          isRead: true,
+          type: "new_booking",
+          message: "New booking: Sarah Johnson scheduled for next Tuesday",
+          resourceId: createdBookings[1].id,
         },
         {
-          type: "client_created",
-          resourceId: clients1[4],
-          message: "New client added: Lisa Anderson",
-          isRead: true,
+          type: "booking_cancelled",
+          message: "Booking cancelled: Michael Chen cancelled appointment for Friday",
+          resourceId: createdBookings[2].id,
         },
       ]
 
-      for (const notification of notificationData1) {
-        await ctx.runMutation(api.notifications.create, {
-          tenantId: tenant1Id,
-          ...notification,
+      for (const notification of notifications) {
+        await ctx.runMutation(api.notifications.createNotification, {
+          tenantId: firstTenant.id,
+          type: notification.type,
+          message: notification.message,
+          resourceId: notification.resourceId,
         })
       }
+      console.log(`✅ Created ${notifications.length} notifications`)
 
-      console.log("Created notifications for tenant 1:", notificationData1.length)
-
-      // Update tenant settings
-      await ctx.runMutation(api.tenants.updateTenantSettings, {
-        tenantId: tenant1Id,
-        businessName: "Premium Auto Spa - Downtown",
-        calendarConnected: false,
-      })
-
-      await ctx.runMutation(api.tenants.updateTenantSettings, {
-        tenantId: tenant2Id,
-        businessName: "Elite Detail Works LLC",
-        calendarConnected: false,
-      })
-
-      console.log("Database seeding completed successfully!")
+      // Summary
+      console.log("\n🎉 Database seeding completed!")
+      console.log(`📊 Summary:`)
+      console.log(`   - ${createdTenants.length} tenants`)
+      console.log(`   - ${createdClients.length} clients`)
+      console.log(`   - ${createdBookings.length} bookings`)
+      console.log(`   - ${notifications.length} notifications`)
 
       return {
         success: true,
         summary: {
-          tenants: 2,
-          users: 3,
-          clients: clients1.length + clients2.length,
-          bookings: bookings1.length + bookings2.length,
-          notifications: notificationData1.length,
+          tenants: createdTenants.length,
+          clients: createdClients.length,
+          bookings: createdBookings.length,
+          notifications: notifications.length,
         },
       }
     } catch (error) {
-      console.error("Error seeding database:", error)
-      throw new Error(`Failed to seed database: ${error.message}`)
+      console.error("❌ Error seeding database:", error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error occurred",
+      }
     }
   },
 })
 
-export const clearDatabase = action({
+// Optional: Create a function to clear all seed data
+export const clearSeedData = action({
   args: {},
   handler: async (ctx) => {
-    console.log("Starting database clear...")
+    console.log("🧹 Clearing seed data...")
 
     try {
-      // Note: This is a simplified version. In production, you'd want to
-      // properly delete all records in the correct order to respect foreign keys
+      // Get all tenants created by seed
+      const seedUserIds = ["seed_user_1", "seed_user_2"]
 
-      console.log("WARNING: This will delete all data in the database!")
-      console.log("Database clearing is not implemented for safety reasons.")
-      console.log("Please use the Convex dashboard to manually clear data if needed.")
+      for (const userId of seedUserIds) {
+        const tenants = await ctx.runQuery(api.tenants.getUserTenants, { userId })
 
+        for (const tenant of tenants) {
+          if (tenant) {
+            await ctx.runMutation(api.tenants.deleteTenant, {
+              tenantId: tenant._id,
+              userId,
+            })
+            console.log(`✅ Deleted tenant: ${tenant.name}`)
+          }
+        }
+      }
+
+      console.log("🎉 Seed data cleared successfully!")
+      return { success: true }
+    } catch (error) {
+      console.error("❌ Error clearing seed data:", error)
       return {
         success: false,
-        message: "Database clearing not implemented for safety",
+        error: error instanceof Error ? error.message : "Unknown error occurred",
       }
-    } catch (error) {
-      console.error("Error clearing database:", error)
-      throw new Error(`Failed to clear database: ${error.message}`)
     }
   },
 })
