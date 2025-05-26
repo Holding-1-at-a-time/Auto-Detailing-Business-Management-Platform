@@ -1,61 +1,55 @@
 /**
- * @description      : Middleware for handling authentication and tenant extraction
- * @author           : rrome
- * @group            : 
- * @created          : 25/05/2025 - 17:11:09
- * 
- * MODIFICATION LOG
- * - Version         : 1.0.0
- * - Date            : 25/05/2025
- * - Author          : rrome
- * - Modification    : 
- **/
+    * @description      : 
+    * @author           : rrome
+    * @group            : 
+    * @created          : 25/05/2025 - 18:55:53
+    * 
+    * MODIFICATION LOG
+    * - Version         : 1.0.0
+    * - Date            : 25/05/2025
+    * - Author          : rrome
+    * - Modification    : 
+**/
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server"
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-import { clerkMiddleware } from "@clerk/nextjs/server"
 
-interface Auth {
-  userId?: string;
-}
+const isPublicRoute = createRouteMatcher(['/', '/sign-up(.*)', '/sign-in(.*)'])
 
-/**
- * Handles authentication and tenant extraction for GET requests
- * @param req The incoming request
- * @returns A response that continues to the next middleware if the user is authenticated, or redirects to the login page if not
- */
 export default clerkMiddleware(async (auth, req) => {
-  try {
-    const { userId, redirectToSignIn } = await auth()
-  if (!userId) 
-throw redirectToSignIn()
-    return NextResponse.next()
-  } catch (error: any) {
-    console.error("Error in GET middleware:", error);
-    // If the error is a redirect error, return it as a response
-    if (error.status === 307 || error.status === 302) {
-      return error;
-    }
-    return new Response("Internal Server Error", { status: 500 });
+  if (!isPublicRoute(req)) {
+    await auth.protect()
   }
-});
-
+})
 
 // Tenant extraction function
 function getTenantFromHost(req: NextRequest): string | null {
-  const host = req.headers.get("host");
-  if (!host) return null;
+  const host = req.headers.get("host")
+  if (!host) return null
 
-  const hostParts = host.split(".");
-  return hostParts.length > 2 ? hostParts[0] : null;
+  // Extract subdomain (e.g., acme.autodetailer.app -> acme)
+  const hostParts = host.split(".")
+  if (hostParts.length > 2) {
+    return hostParts[0]
+  }
+
+  return null
 }
 
 function getTenantFromPath(req: NextRequest): string | null {
-  const pathParts = new URL(req.url).pathname.split("/").filter(Boolean);
-  return pathParts.length > 0 && !pathParts[0].startsWith("_next") && !pathParts[0].startsWith("api") ? pathParts[0] : null;
+  const url = new URL(req.url)
+  const pathParts = url.pathname.split("/").filter(Boolean)
+
+  // If the first part of the path could be a tenant ID
+  if (pathParts.length > 0 && !pathParts[0].startsWith("_next") && !pathParts[0].startsWith("api")) {
+    return pathParts[0]
+  }
+
+  return null
 }
 
 // This middleware runs before the Clerk middleware
-export async function authMiddleware(req: NextRequest): Promise<NextResponse> {
+export async function middleware(req: NextRequest) {
   // Extract tenant from subdomain or path
   const tenantId = getTenantFromHost(req) || getTenantFromPath(req)
 
@@ -80,3 +74,4 @@ export async function authMiddleware(req: NextRequest): Promise<NextResponse> {
 export const config = {
   matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
 }
+
