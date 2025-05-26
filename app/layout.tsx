@@ -1,15 +1,3 @@
-/**
-    * @description      : 
-    * @author           : rrome
-    * @group            : 
-    * @created          : 25/05/2025 - 18:27:31
-    * 
-    * MODIFICATION LOG
-    * - Version         : 1.0.0
-    * - Date            : 25/05/2025
-    * - Author          : rrome
-    * - Modification    : 
-**/
 import type React from "react"
 import { ClerkProvider } from "@clerk/nextjs"
 import { Inter } from "next/font/google"
@@ -32,9 +20,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en"
-    className= "dark"    
-    >
+    <html lang="en">
       <body className={inter.className}>
         <ClerkProvider>
           <ConvexProvider>
