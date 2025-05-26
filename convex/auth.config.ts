@@ -2,7 +2,7 @@
     * @description      : 
     * @author           : rrome
     * @group            : 
-    * @created          : 25/05/2025 - 19:09:44
+    * @created          : 25/05/2025 - 18:24:36
     * 
     * MODIFICATION LOG
     * - Version         : 1.0.0
@@ -10,11 +10,12 @@
     * - Author          : rrome
     * - Modification    : 
 **/
-/** @type {import('postcss-load-config').Config} */
-const config = {
-  plugins: {
-    '@tailwindcss/postcss': {},
-  },
-};
 
-export default config;
+export default {
+  providers: [
+    {
+      domain: process.env.NEXT_PUBLIC_CLERK_FRONTEND_API_URL,
+      applicationID: "convex",
+    },
+  ]
+};

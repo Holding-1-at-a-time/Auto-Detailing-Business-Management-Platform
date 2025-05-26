@@ -1,17 +1,25 @@
+/**
+    * @description      : 
+    * @author           : rrome
+    * @group            : 
+    * @created          : 25/05/2025 - 18:28:55
+    * 
+    * MODIFICATION LOG
+    * - Version         : 1.0.0
+    * - Date            : 25/05/2025
+    * - Author          : rrome
+    * - Modification    : 
+**/
+
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { auth } from "@clerk/nextjs/server"
+import { auth, currentUser } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
 
 export default async function LandingPage() {
-  const { userId } = auth()
+  const user = currentUser()
+  if (!user) return <div>Not signed in</div>
 
-  // If user is signed in, redirect to their first tenant or tenant selection
-  if (userId) {
-    // In a real app, we would fetch the user's tenants and redirect to the first one
-    // For now, we'll just redirect to a placeholder
-    redirect("/tenant-selection")
-  }
 
   return (
     <div className="flex flex-col min-h-screen">

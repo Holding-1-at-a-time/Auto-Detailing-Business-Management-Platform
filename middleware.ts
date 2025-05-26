@@ -1,6 +1,26 @@
-import { authMiddleware } from "@clerk/nextjs"
+/**
+    * @description      : 
+    * @author           : rrome
+    * @group            : 
+    * @created          : 25/05/2025 - 18:55:53
+    * 
+    * MODIFICATION LOG
+    * - Version         : 1.0.0
+    * - Date            : 25/05/2025
+    * - Author          : rrome
+    * - Modification    : 
+**/
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server"
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
+
+const isPublicRoute = createRouteMatcher(['/', '/sign-up(.*)', '/sign-in(.*)'])
+
+export default clerkMiddleware(async (auth, req) => {
+  if (!isPublicRoute(req)) {
+    await auth.protect()
+  }
+})
 
 // Tenant extraction function
 function getTenantFromHost(req: NextRequest): string | null {
@@ -55,7 +75,3 @@ export const config = {
   matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
 }
 
-// Apply Clerk's auth middleware
-export default authMiddleware({
-  publicRoutes: ["/"],
-})
