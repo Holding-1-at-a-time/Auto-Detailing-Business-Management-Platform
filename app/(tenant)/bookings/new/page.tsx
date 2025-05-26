@@ -1,8 +1,5 @@
-"use client"
-
 import { requireTenantAccess } from "@/lib/auth"
 import { BookingForm } from "@/components/bookings/booking-form"
-import { createBooking } from "@/lib/actions/booking-actions"
 
 interface NewBookingPageProps {
   params: { tenant: string }
@@ -18,12 +15,7 @@ export default async function NewBookingPage({ params }: NewBookingPageProps) {
 
       <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
         <div className="p-6">
-          <BookingForm
-            onSubmit={async (data) => {
-              "use server"
-              await createBooking(params.tenant, data)
-            }}
-          />
+          <BookingForm tenantId={params.tenant} />
         </div>
       </div>
     </div>
