@@ -1,19 +1,26 @@
+/**
+    * @description      : 
+    * @author           : rrome
+    * @group            : 
+    * @created          : 26/05/2025 - 08:30:17
+    * 
+    * MODIFICATION LOG
+    * - Version         : 1.0.0
+    * - Date            : 26/05/2025
+    * - Author          : rrome
+    * - Modification    : 
+**/
 import { v } from "convex/values"
 import { WorkflowManager } from "@convex-dev/workflow"
-import { components } from "./_generated/api"
 import { internal } from "./_generated/api"
 import type { Id } from "./_generated/dataModel"
 import { mutation, query } from "./_generated/server"
 import { vWorkflowId } from "@convex-dev/workflow"
 import { vResultValidator } from "@convex-dev/workpool"
+import { componentsGeneric } from "convex/server"
 
 // Initialize the workflow manager with retry behavior
-export const workflow = new WorkflowManager(components.workflow, {
-  defaultRetryBehavior: {
-    maxAttempts: 3,
-    initialBackoffMs: 100,
-    base: 2,
-  },
+export const workflow = new WorkflowManager(componentsGeneric.workflow, {
   workpoolOptions: {
     maxParallelism: 10,
   },
@@ -32,6 +39,7 @@ export const bookingWorkflow = workflow.define({
     step,
     args,
   ): Promise<{
+    tenantId: string
     success: boolean
     bookingId?: string
     message: string
@@ -50,7 +58,7 @@ export const bookingWorkflow = workflow.define({
     )
 
     // Step 2: Find or create the client
-    let clientId = args.clientId
+    let {clientId} = args
     if (!clientId) {
       // Try to find the client first
       const clients = await step.runQuery(
@@ -76,7 +84,7 @@ export const bookingWorkflow = workflow.define({
             phone: parsedRequest.clientPhone,
             notes: `Created during booking workflow for ${parsedRequest.service}`,
           },
-          { retry: true, name: "CREATE_CLIENT" },
+          { name: "CREATE_CLIENT" },
         )
         clientId = clientResult as Id<"clients">
       }
