@@ -4,21 +4,21 @@ import type React from "react"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { useTenant } from "@/hooks/useTenant"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { FormError } from "@/components/common/form-error"
 import type { Client } from "@/lib/types"
-import { createClient } from "@/lib/actions/client-actions"
 
 interface ClientFormProps {
   initialData?: Partial<Client>
-  tenantId: string
-  onSubmit?: (data: Partial<Client>) => Promise<void>
+  onSubmit: (data: Partial<Client>) => Promise<void>
 }
 
-export function ClientForm({ initialData, tenantId, onSubmit }: ClientFormProps) {
+export function ClientForm({ initialData, onSubmit }: ClientFormProps) {
   const router = useRouter()
+  const { tenantId } = useTenant()
 
   const [name, setName] = useState(initialData?.name || "")
   const [email, setEmail] = useState(initialData?.email || "")
@@ -56,18 +56,12 @@ export function ClientForm({ initialData, tenantId, onSubmit }: ClientFormProps)
     setIsSubmitting(true)
 
     try {
-      const clientData = {
+      await onSubmit({
         name,
         email: email || undefined,
         phone: phone || undefined,
         notes: notes || undefined,
-      }
-
-      if (onSubmit) {
-        await onSubmit(clientData)
-      } else {
-        await createClient(tenantId, clientData)
-      }
+      })
 
       router.push(`/${tenantId}/clients`)
     } catch (error) {
