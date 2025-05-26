@@ -1,15 +1,3 @@
-/**
-    * @description      : 
-    * @author           : rrome
-    * @group            : 
-    * @created          : 25/05/2025 - 20:37:35
-    * 
-    * MODIFICATION LOG
-    * - Version         : 1.0.0
-    * - Date            : 25/05/2025
-    * - Author          : rrome
-    * - Modification    : 
-**/
 import type React from "react"
 import { ClerkProvider } from "@clerk/nextjs"
 import { Inter } from "next/font/google"

@@ -69,4 +69,16 @@ export default defineSchema({
     expiryDate: v.number(),
     updatedAt: v.number(),
   }).index("by_tenantId", ["tenantId"]),
+
+  notifications: defineTable({
+    tenantId: v.id("tenants"),
+    type: v.string(),
+    resourceId: v.string(),
+    message: v.string(),
+    isRead: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.optional(v.number()),
+  })
+    .index("by_tenant", ["tenantId"])
+    .index("by_tenant_and_read", ["tenantId", "isRead"]),
 })
