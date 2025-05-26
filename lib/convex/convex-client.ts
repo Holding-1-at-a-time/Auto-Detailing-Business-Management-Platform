@@ -7,7 +7,7 @@ export const convex = new ConvexClient(process.env.NEXT_PUBLIC_CONVEX_URL || "")
 export function getTenantScopedClient(tenantId: string) {
   return {\
     query: async <T>(fnName: string, args: any = {}): Promise<T> => {
-      return convex.query(fnName, { ...args, tenantId }) as T;
+      return convex.query(fnName, { ...args, tenantId });
 }
 ,
     mutation: async <T>(fnName: string, args: any =
@@ -15,8 +15,7 @@ export function getTenantScopedClient(tenantId: string) {
 }
 ): Promise<T> =>
 {
-  return convex.mutation(fnName, { ...args, tenantId }) as T;
+  return convex.mutation(fnName, { ...args, tenantId });
 }
-,
-  }
+}
 }
